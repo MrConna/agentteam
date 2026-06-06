@@ -113,24 +113,26 @@ Acceptance criteria:
 
 ## Phase 4: MVP Architecture Spike
 
+Status: complete
+
 Goal:
 
 Decide how real agent execution will work after the prototype.
 
-Questions to answer:
+Questions answered:
 
-- adapter target: Codex CLI, Claude Code, or both
-- execution model: direct workspace, copied workspace, or sandbox
-- state store: SQLite schema
-- command approval model
-- diff collection model
-- task ownership model
+- adapter target: Codex CLI + Claude Code first, then Antigravity/pi-agent scouts (`docs/multi-agent-team-architecture.md`, "First Integration Target")
+- execution model: isolated git worktree per agent task, merge through review gate ("Worktree Policy")
+- state store: SQLite at `.agentteam/state.db` (`docs/data-schema.md`)
+- command approval model: per-run `approval_policy` enum `read_only|scoped_writes|approval_required`
+- diff collection model: git state + heartbeat + artifacts captured as `activity_events` and surfaced in Run Console
+- task ownership model: roles on `tasks`/`agents`; live execution tracked separately in `delegated_runs`
 
 Deliverables:
 
-- architecture note
-- data schema draft
-- integration plan
+- architecture note: `docs/multi-agent-team-architecture.md`
+- data schema draft: `docs/data-schema.md` (DDL validated against sqlite3)
+- integration plan: "Practical MVP Path" (Phase A/B/C) in the architecture note
 
 ## Phase 5: Minimal Working MVP
 
