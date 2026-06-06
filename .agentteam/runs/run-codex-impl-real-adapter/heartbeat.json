@@ -1,0 +1,8 @@
+{
+  "runId": "run-codex-impl-real-adapter",
+  "status": "completed",
+  "progress": 100,
+  "currentStep": "Validation passed; preparing commit",
+  "nextStep": "Reviewer handoff",
+  "lastHeartbeat": "2026-06-06T17:12:01Z"
+}

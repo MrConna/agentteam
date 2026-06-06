@@ -1,5 +1,14 @@
 import type { RunSummary, ServerState } from "./types/domain";
 
+export type RunTaskOptions = {
+  provider?: "simulated" | "claude" | "codex" | "pi-agent";
+  model?: string;
+  dryRun?: boolean;
+  prompt?: string;
+  worktree?: string;
+  timeoutMs?: number;
+};
+
 async function http<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     headers: { "content-type": "application/json" },
@@ -38,11 +47,17 @@ export const api = {
   acceptFollowUp: (runId: string, inboxId: string) =>
     http<ServerState>(`/api/runs/${runId}/inbox/${inboxId}/accept-follow-up`, { method: "POST" }),
 
-  runTask: (runId: string, taskId: string) =>
-    http<ServerState>(`/api/runs/${runId}/tasks/${taskId}/run`, { method: "POST" }),
+  runTask: (runId: string, taskId: string, options?: RunTaskOptions) =>
+    http<ServerState>(`/api/runs/${runId}/tasks/${taskId}/run`, {
+      method: "POST",
+      body: options ? JSON.stringify(options) : undefined,
+    }),
 
-  runNext: (runId: string) =>
-    http<ServerState>(`/api/runs/${runId}/run-next`, { method: "POST" }),
+  runNext: (runId: string, options?: RunTaskOptions) =>
+    http<ServerState>(`/api/runs/${runId}/run-next`, {
+      method: "POST",
+      body: options ? JSON.stringify(options) : undefined,
+    }),
 
   moveTask: (runId: string, taskId: string, status: string) =>
     http<ServerState>(`/api/runs/${runId}/tasks/${taskId}/move`, {

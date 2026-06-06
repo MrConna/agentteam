@@ -1,0 +1,42 @@
+{
+  "runId": "run-codex-impl-real-adapter",
+  "status": "completed",
+  "changedFiles": [
+    ".agentteam/runs/run-codex-impl-real-adapter/task.json",
+    ".agentteam/runs/run-codex-impl-real-adapter/plan.md",
+    ".agentteam/runs/run-codex-impl-real-adapter/heartbeat.json",
+    ".agentteam/runs/run-codex-impl-real-adapter/progress.md",
+    ".agentteam/runs/run-codex-impl-real-adapter/decisions.md",
+    ".agentteam/runs/run-codex-impl-real-adapter/blockers.md",
+    ".agentteam/runs/run-codex-impl-real-adapter/evidence.md",
+    ".agentteam/runs/run-codex-impl-real-adapter/summary.md",
+    ".agentteam/runs/run-codex-impl-real-adapter/result.json",
+    "server/agentCli.ts",
+    "server/runArtifacts.ts",
+    "server/realAdapter.ts",
+    "server/adapter.ts",
+    "server/index.ts",
+    "src/api.ts",
+    "docs/real-agent-adapter-implementation.md"
+  ],
+  "commandsRun": [
+    "bin/memory apply --query \"real adapter server adapter run artifacts cli delegation worktree\"",
+    "git diff --check",
+    "npm install",
+    "npm run build"
+  ],
+  "validation": [
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "note": "Initial build failed before npm install because tsc was unavailable."
+    }
+  ],
+  "blockers": [],
+  "followUps": [],
+  "recommendedNextAgent": "reviewer"
+}
