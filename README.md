@@ -13,6 +13,19 @@ Current deliverables:
 - [docs/goal.md](docs/goal.md): product goal, positioning, principles, success criteria
 - [docs/spec.md](docs/spec.md): MVP product specification
 - [docs/plan.md](docs/plan.md): execution plan and milestones
+- [memory/README.md](memory/README.md): project memory, session context, and optional cross-project brain tooling
+
+## Project Memory
+
+AgentTeam includes a project-local memory module initialized from `agent-memory-tools`.
+
+```bash
+bin/memory list
+bin/memory apply --query "task keywords"
+bin/context restore
+```
+
+Use `bin/memory add` for durable project learnings and `bin/context save` for resumable work state.
 
 ## Product Thesis
 
@@ -31,4 +44,3 @@ Operator Console:
 - Dense, professional, developer-first UI
 - Project channel + task board + agent activity + review gate
 - Browser-first prototype, desktop-wrapper compatible later
-
