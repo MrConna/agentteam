@@ -25,6 +25,8 @@ Every run should have:
 
 Agents can be backed by different tools/models, but AgentTeam should expose them as roles with budgets, capabilities, write scope, and review responsibility.
 
+Operational updates, run artifacts, progress rules, and handoff requirements are defined in [agent-development-standard.md](agent-development-standard.md).
+
 ## Recommended Role Routing
 
 | Role | Default Tool | Premium Escalation | Best For |

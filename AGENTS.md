@@ -11,6 +11,39 @@ This repository has a lightweight memory module.
 
 High-confidence learnings (`confidence >= 7`) are treated as project guidance. Low-confidence learnings are notes, not rules.
 
+## Delegated Work Standard
+
+For multi-agent work, follow [docs/agent-development-standard.md](docs/agent-development-standard.md).
+
+Every delegated agent must keep its work observable:
+
+- Before starting: retrieve relevant memory, read the task contract, confirm read/write scope.
+- Before edits: write or return a short plan with expected files and validation commands.
+- During work: update heartbeat/progress at meaningful milestones.
+- When blocked: record the blocker, why it blocks progress, options, and recommended option.
+- Before handoff: provide summary, changed files, commands run, validation result, risks, and recommended next agent.
+
+If the agent can write files, use `.agentteam/runs/<run-id>/` artifacts:
+
+- `task.json`
+- `plan.md`
+- `heartbeat.json`
+- `progress.md`
+- `decisions.md`
+- `blockers.md`
+- `evidence.md`
+- `summary.md`
+- `result.json`
+
+If the agent cannot write files, return those sections in the final response so AgentTeam can persist them.
+
+Task status and delegated run status are separate:
+
+- Task status: `backlog`, `ready`, `running`, `review`, `done`
+- Run status: `queued`, `running`, `blocked`, `completed`, `merged`, `failed`
+
+Do not expand write scope, run risky commands, or escalate to a premium model without a recorded reason.
+
 ## Examples
 
 ```bash
