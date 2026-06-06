@@ -73,9 +73,16 @@ export function buildCliCommand(input: {
     if (input.model) args.splice(1, 0, "--model", input.model);
     return toCommand(input.provider, "codex", args, input.worktree);
   }
-  const args = ["run", "--prompt", prompt];
+  const args = [
+    "-p",
+    "--tools",
+    "read,grep,find,ls,bash,edit,write",
+    "--session-dir",
+    `.agentteam/sessions/${input.runId}`,
+  ];
   if (input.model) args.push("--model", input.model);
-  return toCommand(input.provider, "pi-agent", args, input.worktree);
+  args.push(prompt);
+  return toCommand(input.provider, "pi", args, input.worktree);
 }
 
 export async function executeCliCommand(

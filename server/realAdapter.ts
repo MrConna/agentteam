@@ -199,5 +199,5 @@ export async function runRealTask(
 function defaultModel(provider: "claude" | "codex" | "pi-agent"): string {
   if (provider === "claude") return "sonnet4.6";
   if (provider === "codex") return "GPT-5";
-  return "default";
+  return "deepseek/deepseek-v4-flash";
 }

@@ -61,7 +61,9 @@ The initial command forms are:
 
 - Claude: `claude [--model value] -p <prompt>` as argv `["--model", value, "-p", prompt]` when a model is supplied.
 - Codex: `codex exec [--model value] <prompt>`
-- Pi Agent: `pi-agent run --prompt <prompt> [--model value]`
+- Pi Agent: `pi -p --tools read,grep,find,ls,bash,edit,write --session-dir .agentteam/sessions/<runId> [--model value] <prompt>`
+
+pi-agent model names must use the provider-qualified form. The local short alias `kimi-2.6` failed during scout validation; verified examples include `moonshotai-cn/kimi-k2.6` and `deepseek/deepseek-v4-flash`.
 
 Commands are represented as argv arrays and displayed as a string for audit evidence. They are not run through a shell.
 
