@@ -13,6 +13,8 @@ It prevents four failure modes:
 
 Every delegated agent must leave behind compact, structured artifacts that another agent or the human can inspect without reading the full transcript.
 
+Memory sync is part of the work, not an optional cleanup step. Agents must keep durable learnings current so later agents do not spend premium tokens rediscovering the same context.
+
 ## Required Artifacts
 
 Each delegated run must have a run directory:
@@ -327,6 +329,7 @@ Before starting:
 - read task contract
 - confirm write scope
 - create run directory or return artifact sections
+- record which memory entries influenced the plan
 
 Before edits:
 
@@ -347,8 +350,156 @@ Before handoff:
 - run validation or explain why not
 - write summary
 - write result
+- sync durable memory candidates
 - recommend next agent
 - mark status completed/failed/blocked
+
+## Memory Sync Protocol
+
+### Memory Layers
+
+AgentTeam uses three memory layers:
+
+- `memory/learnings.jsonl`: durable project rules, decisions, traps, routing lessons, and verified patterns.
+- `memory/contexts.jsonl`: resumable session checkpoints and remaining work.
+- `~/.brain`: optional cross-project semantic index for reusable learnings.
+
+Progress artifacts answer "what happened in this run." Memory answers "what should future runs know without rereading this run."
+
+### Before Starting Work
+
+Every non-trivial delegated run must retrieve relevant memory:
+
+```bash
+bin/memory apply --query "<task keywords>"
+```
+
+The agent must record memory usage in `.agentteam/runs/<run-id>/progress.md`:
+
+```md
+## Memory Used
+
+- [9/10] Review gates must remain explicit before agents hand work back.
+- [8/10] Use cheap scouts before premium model review.
+```
+
+If no relevant memory is found, record:
+
+```md
+## Memory Used
+
+- No matching high-confidence memory found.
+```
+
+### During Work
+
+Agents should collect memory candidates in `decisions.md`, but should not immediately add every note to project memory.
+
+Use this format:
+
+```md
+## Memory Candidates
+
+- Candidate: Real Codex adapter should write heartbeat before spawning CLI.
+  - Type: implementation pattern
+  - Confidence: 7
+  - Evidence: server/adapter.ts run lifecycle
+  - Keep? yes
+```
+
+### Before Handoff
+
+At final handoff, add durable learnings with `bin/memory add` when they meet at least one condition:
+
+- future agents should follow the rule
+- a failed approach should not be repeated
+- routing/model choice was validated
+- an architecture decision was made
+- a recurring bug pattern was found
+- a safety or approval rule was clarified
+
+Example:
+
+```bash
+bin/memory add "Codex workers must update heartbeat.json before running long CLI tasks so Delegation Tracker can show live state" \
+  --confidence 8 \
+  --source "coder/run-codex-impl-oauth" \
+  --tags delegation,heartbeat,codex \
+  --files docs/agent-development-standard.md \
+  --context "Discovered while defining delegated run observability."
+```
+
+### What Not To Store
+
+Do not store:
+
+- ordinary progress updates
+- raw command output
+- secrets, tokens, credentials, or private customer data
+- one-off preferences with no future value
+- low-confidence guesses as high-confidence memory
+- huge summaries that belong in `summary.md`
+
+### Confidence Rules
+
+- 9-10: verified rule or decision future agents should apply automatically.
+- 7-8: strong lesson, useful for routing and planning.
+- 4-6: hypothesis or early pattern, retrieve but do not auto-apply.
+- 0-3: weak note, normally keep out of memory.
+
+High-confidence memory should be concise. If the explanation is long, put the detail in a doc and link the file in `--files`.
+
+### Context Checkpoints
+
+Use context saves for resumable work, not durable rules:
+
+```bash
+bin/context save \
+  --description "<what happened>" \
+  --decisions "<decision 1>|<decision 2>" \
+  --remaining "<next 1>|<next 2>" \
+  --failed "<failed approach>" \
+  --artifacts "<file1>,<file2>"
+```
+
+Save context:
+
+- after major merges
+- before pausing a long run
+- after architecture decisions
+- after a blocked state is reached
+- before handing off to another human session
+
+### Cross-Project Brain Sync
+
+Project memory is local by default. Cross-project search is optional and should be deliberate.
+
+Use:
+
+```bash
+bin/brain register "$(pwd)"
+bin/brain sync
+```
+
+Run `bin/brain sync` after:
+
+- adding multiple high-confidence learnings
+- completing a milestone
+- discovering a broadly reusable agent-routing pattern
+- changing standard protocols
+
+Do not require `brain sync` for every small task; that wastes time and may index noisy early learnings.
+
+### Memory Sync Checklist
+
+Every delegated run final summary must answer:
+
+- Did this run retrieve memory before starting?
+- Which memory entries affected the plan?
+- Were any durable learnings discovered?
+- Were those learnings added with `bin/memory add`?
+- Is a context checkpoint needed?
+- Is cross-project `brain sync` useful now?
 
 ## Human-Visible Status Rules
 

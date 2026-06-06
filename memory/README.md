@@ -20,6 +20,47 @@ bin/context save --description "Initialized memory module" --decisions "Use JSON
 bin/context restore
 ```
 
+## Sync Rules
+
+Use memory for durable knowledge, not ordinary progress.
+
+Add to `learnings.jsonl` when a future agent should know it without rereading a full run:
+
+- architecture decisions
+- validated development rules
+- recurring bug patterns
+- failed approaches to avoid
+- model-routing lessons
+- safety and approval policies
+
+Use `contexts.jsonl` for resumable session state:
+
+- what was done
+- decisions made
+- remaining work
+- blockers
+- artifacts
+
+Before non-trivial work:
+
+```bash
+bin/memory apply --query "<task keywords>"
+```
+
+After meaningful milestones:
+
+```bash
+bin/context save --description "<checkpoint>" --decisions "<d1>|<d2>" --remaining "<r1>|<r2>"
+```
+
+After several high-confidence learnings or reusable routing lessons, optionally update the cross-project index:
+
+```bash
+bin/brain sync
+```
+
+Do not store secrets, raw logs, noisy progress updates, or low-confidence guesses as high-confidence memory.
+
 ## Optional Cross-Project Brain
 
 `bin/brain` indexes learnings across projects with sentence-transformer embeddings. It is optional and requires:
