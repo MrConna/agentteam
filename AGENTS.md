@@ -22,11 +22,13 @@ For multi-agent work, follow [docs/agent-development-standard.md](docs/agent-dev
 Every delegated agent must keep its work observable:
 
 - Before starting: retrieve relevant memory, read the task contract, confirm read/write scope.
+- Before writing: work in a dedicated task worktree, not directly on `main`.
 - Before edits: write or return a short plan with expected files and validation commands.
 - During work: update heartbeat/progress at meaningful milestones.
 - When blocked: record the blocker, why it blocks progress, options, and recommended option.
 - Before handoff: provide summary, changed files, commands run, validation result, risks, and recommended next agent.
 - Before handoff: sync durable memory candidates using `bin/memory add` and save context if the work should be resumable.
+- Before committing: inspect `git status --short`, run `git diff --check`, stage only assigned files, and commit only stable handoff states.
 
 If the agent can write files, use `.agentteam/runs/<run-id>/` artifacts:
 
@@ -48,6 +50,10 @@ Task status and delegated run status are separate:
 - Run status: `queued`, `running`, `blocked`, `completed`, `merged`, `failed`
 
 Do not expand write scope, run risky commands, or escalate to a premium model without a recorded reason.
+
+Only the human integrator or assigned integration agent merges task branches into `main`. If conflicts appear, mark the run blocked and record conflicted files instead of overwriting another agent's work.
+
+Never commit `node_modules/`, `dist/`, `__pycache__/`, `.DS_Store`, secrets, unrelated prototypes, or files outside the assigned write scope.
 
 ## Examples
 

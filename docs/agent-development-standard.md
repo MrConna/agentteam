@@ -53,6 +53,8 @@ AgentTeam creates:
 
 Agent must not expand the write scope without asking for approval.
 
+All write-capable agents must work in a dedicated git worktree. Direct edits on `main` are reserved for the human integrator or tiny documentation-only fixes explicitly approved by the human.
+
 ### 2. Started
 
 Agent must update:
@@ -320,6 +322,239 @@ Best default tools:
 
 - pi-agent Kimi 2.6
 - Claude sonnet4.6 for polished external docs
+
+## Worktree, Commit, and Merge Standard
+
+Use [delegated-task-template.md](delegated-task-template.md) when assigning work to any agent.
+
+### Worktree Rule
+
+Every write-capable delegated agent must use an isolated worktree:
+
+```bash
+git worktree add -b agent/<provider>-<role>-<task-slug> ../agentteam-<provider>-<role>-<task-slug> main
+```
+
+Examples:
+
+- `agent/claude-plan-oauth`
+- `agent/codex-impl-oauth`
+- `agent/pi-scribe-test-summary`
+- `agent/antigravity-scout-auth`
+
+The run artifact must record:
+
+- branch
+- worktree path
+- base commit
+- assigned write scope
+- expected merge target
+
+### Branch Naming
+
+Use:
+
+```text
+agent/<provider>-<role>-<short-task>
+```
+
+Provider values:
+
+- `claude`
+- `codex`
+- `antigravity`
+- `pi`
+
+Role values:
+
+- `plan`
+- `scout`
+- `impl`
+- `test`
+- `review`
+- `scribe`
+
+### Commit Timing
+
+Agents should commit only at stable handoff points.
+
+Commit when:
+
+- assigned scope is complete
+- validation has passed, or failure is documented
+- run artifacts are updated
+- summary/result are written
+- memory candidates are handled
+- no unrelated files are staged
+
+Do not commit:
+
+- half-written implementation
+- failing state without marking it as failed/blocked
+- generated dependency/build folders
+- files outside write scope
+- unrelated user changes
+
+For long tasks, an agent may create checkpoint commits only when all are true:
+
+- the checkpoint builds or is clearly marked as WIP in `summary.md`
+- the checkpoint helps handoff or recovery
+- the branch remains isolated in its worktree
+
+Checkpoint commits must not be merged until review gate approval.
+
+### Commit Message Format
+
+Use concise, role-aware messages:
+
+```text
+<role>: <outcome>
+```
+
+Examples:
+
+- `planner: define oauth task plan`
+- `scout: map auth surface`
+- `coder: add github oauth provider`
+- `tester: add auth smoke coverage`
+- `reviewer: record oauth review verdict`
+- `scribe: summarize run context`
+
+### Staging Rule
+
+Before committing:
+
+```bash
+git status --short
+git diff --check
+```
+
+Stage only assigned files. Never use broad staging if the worktree contains unrelated files:
+
+```bash
+git add <explicit-file-1> <explicit-file-2>
+```
+
+`git add .` is allowed only when the worktree was created solely for the task and `git status --short` has been inspected.
+
+### Forbidden Commit Contents
+
+Never commit:
+
+- `node_modules/`
+- `dist/` unless explicitly requested for deploy artifacts
+- `__pycache__/`
+- `.DS_Store`
+- secrets or `.env` files
+- raw transcripts with secrets
+- unreviewed generated binaries
+- unrelated local prototypes
+
+Generated artifacts must either be ignored or explicitly justified in `evidence.md`.
+
+### Dependency Changes
+
+Dependency changes require an explicit reason.
+
+If an agent changes `package.json`, lockfiles, or tool config, it must record:
+
+- why the dependency/config is needed
+- alternatives considered
+- install command run
+- build/test result
+- risk or size impact
+
+Dependency changes should be reviewed before merge.
+
+### Merge Rule
+
+Only the human integrator or assigned integration agent merges branches into `main`.
+
+Before merge:
+
+- source branch has final summary/result
+- source branch status is `completed`
+- review gate exists or is explicitly skipped with reason
+- build/tests relevant to the change passed
+- no uncommitted files in source worktree
+
+After merge:
+
+- run build/tests on `main`
+- update delegated run status to `merged`
+- update task status if appropriate
+- save context checkpoint for meaningful milestones
+
+### Conflict Handling
+
+If merge conflicts occur:
+
+- stop and mark the delegated run as `blocked`
+- record conflicted files
+- record likely cause
+- recommend owner for resolution
+- do not resolve conflicts by deleting another agent's work
+
+Only an integration agent should resolve cross-agent conflicts.
+
+### Validation Gate
+
+Each role has minimum validation:
+
+- Planner: task plan reviewed for scope, dependencies, ambiguity.
+- Scout: report includes relevant files, risks, and unknowns.
+- Coder: build/test command run when available.
+- Tester: test command output summarized.
+- Reviewer: findings first, verdict last.
+- Scribe: summary checked against artifacts.
+
+If validation cannot run, the agent must explain why and record residual risk.
+
+### Permission and Escalation Rule
+
+Agents must request approval before:
+
+- expanding write scope
+- running destructive commands
+- adding dependencies
+- touching secrets/env files
+- escalating to premium models
+- merging into `main`
+- changing standards or routing rules
+
+Every escalation must include:
+
+- reason
+- expected benefit
+- cheaper alternative considered
+- budget impact
+
+### Parallel Work Rule
+
+Parallel agents must have disjoint write scopes.
+
+If two agents need the same file:
+
+- one agent owns the file
+- the other produces a patch suggestion or review note
+- integration agent applies final changes
+
+Shared files such as `package.json`, lockfiles, schema files, and global CSS should be assigned carefully because they create merge pressure.
+
+### Cleanup Rule
+
+After successful merge and validation:
+
+- leave source branch available until human confirms cleanup
+- remove stale worktrees only after merge is accepted
+- keep `.agentteam/runs/<run-id>/` artifacts
+- do not delete evidence needed for audit or review
+
+Suggested cleanup command after approval:
+
+```bash
+git worktree remove ../agentteam-<provider>-<role>-<task-slug>
+```
 
 ## Standard Update Checklist
 
