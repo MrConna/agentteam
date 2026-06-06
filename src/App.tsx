@@ -21,8 +21,17 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { prototypeState } from "./data/mockData";
+import type {
+  ActivityEventType,
+  AgentRole,
+  AgentStatus,
+  InboxItemType,
+  RiskLevel,
+  TaskStatus as DomainTaskStatus,
+} from "./types/domain";
 
-type AgentRole = "Planner" | "Coder" | "Reviewer" | "Tester";
+type DisplayAgentRole = "Planner" | "Coder" | "Reviewer" | "Tester";
 type TaskStatus = "Backlog" | "Ready" | "Running" | "Review" | "Done";
 type Risk = "Low" | "Medium" | "High";
 type Tab = "channel" | "console";
@@ -31,7 +40,7 @@ type ReviewState = "waiting" | "approved" | "changes";
 
 type Agent = {
   id: string;
-  role: AgentRole;
+  role: DisplayAgentRole;
   name: string;
   status: string;
   load: string;
@@ -41,7 +50,7 @@ type Task = {
   id: string;
   title: string;
   description: string;
-  owner: AgentRole;
+  owner: DisplayAgentRole;
   status: TaskStatus;
   files: string[];
   risk: Risk;
@@ -50,7 +59,7 @@ type Task = {
 
 type ChannelMessage = {
   id: string;
-  agent: AgentRole;
+  agent: DisplayAgentRole;
   kind: string;
   text: string;
   time: string;
@@ -59,7 +68,7 @@ type ChannelMessage = {
 
 type ConsoleEvent = {
   id: string;
-  agent: AgentRole;
+  agent: DisplayAgentRole;
   kind: string;
   text: string;
   time: string;
@@ -71,133 +80,131 @@ type InboxItem = {
   id: string;
   title: string;
   type: string;
-  agent: AgentRole;
+  agent: DisplayAgentRole;
   taskId?: string;
   detail: string;
   state: InboxState;
 };
 
-const agents: Agent[] = [
-  { id: "planner", role: "Planner", name: "Planwright", status: "Plan ready", load: "1 approval" },
-  { id: "coder", role: "Coder", name: "Patch", status: "Implementing OAuth", load: "2 files" },
-  { id: "reviewer", role: "Reviewer", name: "Rook", status: "Review gate armed", load: "1 verdict" },
-  { id: "tester", role: "Tester", name: "Gauge", status: "Smoke checks queued", load: "3 checks" },
-];
+const roleLabels: Record<AgentRole, DisplayAgentRole> = {
+  planner: "Planner",
+  coder: "Coder",
+  reviewer: "Reviewer",
+  tester: "Tester",
+};
 
-const initialTasks: Task[] = [
-  {
-    id: "task-audit",
-    title: "Audit current auth structure",
-    description: "Map the login flow, session storage, and protected-route assumptions before adding a provider.",
-    owner: "Planner",
-    status: "Done",
-    files: ["app/layout.tsx", "lib/session.ts"],
-    risk: "Low",
-    update: "Auth surface mapped; no existing OAuth provider.",
-  },
-  {
-    id: "task-oauth",
-    title: "Add GitHub OAuth provider",
-    description: "Add provider configuration, callback handling, and environment-variable notes.",
-    owner: "Coder",
-    status: "Running",
-    files: ["lib/auth.ts", ".env.example", "app/api/auth/[...nextauth]/route.ts"],
-    risk: "High",
-    update: "Provider wired; callback path needs confirmation.",
-  },
-  {
-    id: "task-login",
-    title: "Build login screen",
-    description: "Create the first authenticated entry point with GitHub sign-in and failure states.",
-    owner: "Coder",
-    status: "Ready",
-    files: ["app/login/page.tsx", "components/auth/LoginPanel.tsx"],
-    risk: "Medium",
-    update: "Ready after provider approval.",
-  },
-  {
-    id: "task-dashboard",
-    title: "Protect dashboard route",
-    description: "Redirect anonymous visitors and preserve the requested dashboard destination.",
-    owner: "Coder",
-    status: "Backlog",
-    files: ["app/dashboard/layout.tsx", "middleware.ts"],
-    risk: "Medium",
-    update: "Blocked on auth provider.",
-  },
-  {
-    id: "task-smoke",
-    title: "Add smoke tests",
-    description: "Cover login redirect, provider button rendering, and protected dashboard access.",
-    owner: "Tester",
-    status: "Review",
-    files: ["tests/auth.spec.ts"],
-    risk: "Low",
-    update: "Smoke test diff is ready for review.",
-  },
-  {
-    id: "task-env",
-    title: "Review environment variables",
-    description: "Confirm required GitHub client id, secret, callback URL, and session secret.",
-    owner: "Reviewer",
-    status: "Backlog",
-    files: [".env.example", "docs/setup.md"],
-    risk: "High",
-    update: "Needs reviewer pass before ship.",
-  },
-];
+const statusLabels: Record<DomainTaskStatus, TaskStatus> = {
+  backlog: "Backlog",
+  ready: "Ready",
+  running: "Running",
+  review: "Review",
+  done: "Done",
+};
 
-const initialMessages: ChannelMessage[] = [
-  { id: "m1", agent: "Planner", kind: "plan proposed", text: "Six-task plan proposed for GitHub OAuth and protected dashboard.", time: "09:12" },
-  { id: "m2", agent: "Coder", kind: "task started", text: "Started provider wiring. Limiting changes to auth route and env example.", time: "09:19", taskId: "task-oauth" },
-  { id: "m3", agent: "Reviewer", kind: "approval requested", text: "Review gate will require env notes, callback path, and smoke test evidence.", time: "09:27", taskId: "task-oauth" },
-  { id: "m4", agent: "Tester", kind: "review completed", text: "Smoke spec is ready. No browser run yet; command approval pending.", time: "09:35", taskId: "task-smoke" },
-];
+const riskLabels: Record<RiskLevel, Risk> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+};
 
-const initialEvents: ConsoleEvent[] = [
-  { id: "e1", agent: "Planner", kind: "reasoning", text: "Detected existing session helper and no provider registry.", time: "09:13", severity: "normal" },
-  { id: "e2", agent: "Coder", kind: "file changed", text: "lib/auth.ts: added GitHub provider shell and session callback.", time: "09:22", taskId: "task-oauth", severity: "ok" },
-  { id: "e3", agent: "Coder", kind: "warning", text: "Callback path must match GitHub app settings before final approval.", time: "09:24", taskId: "task-oauth", severity: "warn" },
-  { id: "e4", agent: "Tester", kind: "test run", text: "Queued npm run test:smoke for auth redirect coverage.", time: "09:36", taskId: "task-smoke", severity: "normal" },
-];
+const agentLoadLabels: Record<AgentStatus, string> = {
+  idle: "Standing by",
+  planning: "Plan active",
+  running: "Execution active",
+  reviewing: "Review active",
+  blocked: "Blocked",
+  done: "Complete",
+};
 
-const initialInbox: InboxItem[] = [
-  {
-    id: "inbox-plan",
-    title: "Approve generated task plan",
-    type: "approve plan",
-    agent: "Planner",
-    detail: "Planner proposes six scoped tasks with explicit review gates for env and route protection.",
-    state: "open",
-  },
-  {
-    id: "inbox-env",
-    title: "Approve reading .env.example",
-    type: "approve file scope",
-    agent: "Coder",
-    taskId: "task-oauth",
-    detail: "Coder needs to inspect .env.example and update only documented variable names.",
-    state: "open",
-  },
-  {
-    id: "inbox-callback",
-    title: "Confirm GitHub callback path",
-    type: "answer blocker",
-    agent: "Reviewer",
-    taskId: "task-oauth",
-    detail: "Use /api/auth/callback/github for local and production GitHub app settings.",
-    state: "open",
-  },
-  {
-    id: "inbox-diff",
-    title: "Review smoke test diff",
-    type: "review diff",
-    agent: "Tester",
-    taskId: "task-smoke",
-    detail: "Smoke test adds redirect and provider-button checks without touching app behavior.",
-    state: "open",
-  },
-];
+const eventSeverity: Record<ActivityEventType, ConsoleEvent["severity"]> = {
+  reasoning: "normal",
+  command_run: "normal",
+  command_result: "ok",
+  file_changed: "ok",
+  test_run: "normal",
+  warning: "warn",
+  external_call: "normal",
+};
+
+const inboxStateLabels = {
+  open: "open",
+  approved: "approved",
+  rejected: "changes",
+  answered: "approved",
+} satisfies Record<string, InboxState>;
+
+const inboxTypeLabels: Record<InboxItemType, string> = {
+  approve_plan: "approve plan",
+  approve_command: "approve command",
+  approve_file_scope: "approve file scope",
+  review_diff: "review diff",
+  answer_blocker: "answer blocker",
+  accept_follow_up: "accept follow-up",
+};
+
+const labelize = (value: string) => value.replace(/_/g, " ");
+
+const agents: Agent[] = prototypeState.agents.map((agent) => ({
+  id: agent.id,
+  role: roleLabels[agent.role],
+  name: agent.name,
+  status: agent.lastUpdate,
+  load: agentLoadLabels[agent.status],
+}));
+
+const ownerByAgentId = new Map(
+  prototypeState.agents.map((agent) => [agent.id, roleLabels[agent.role]]),
+);
+
+const initialTasks: Task[] = prototypeState.tasks.map((task) => ({
+  id: task.id,
+  title: task.title,
+  description: task.description,
+  owner: ownerByAgentId.get(task.ownerAgentId) ?? "Planner",
+  status: statusLabels[task.status],
+  files: task.fileScope,
+  risk: riskLabels[task.risk],
+  update: task.lastUpdate,
+}));
+
+const initialMessages: ChannelMessage[] = prototypeState.channelMessages.map((message) => ({
+  id: message.id,
+  agent: ownerByAgentId.get(message.agentId) ?? "Planner",
+  kind: labelize(message.type),
+  text: message.body,
+  time: message.timestamp,
+  taskId: message.taskId,
+}));
+
+const initialEvents: ConsoleEvent[] = prototypeState.activityEvents.map((event) => ({
+  id: event.id,
+  agent: ownerByAgentId.get(event.agentId) ?? "Planner",
+  kind: labelize(event.type),
+  text: event.command ? `${event.summary} (${event.command})` : event.summary,
+  time: event.timestamp,
+  taskId: event.taskId,
+  severity: eventSeverity[event.type],
+}));
+
+const initialInbox: InboxItem[] = prototypeState.inboxItems.map((item) => ({
+  id: item.id,
+  title: item.title,
+  type: inboxTypeLabels[item.type],
+  agent: ownerByAgentId.get(item.agentId) ?? "Planner",
+  taskId: item.taskId,
+  detail: item.summary,
+  state: inboxStateLabels[item.status],
+}));
+
+const planInboxId =
+  prototypeState.inboxItems.find((item) => item.type === "approve_plan")?.id ?? "";
+const reviewGate = prototypeState.reviewGate;
+const initialReviewState: ReviewState =
+  reviewGate.status === "approved"
+    ? "approved"
+    : reviewGate.status === "changes_requested"
+      ? "changes"
+      : "waiting";
 
 const columns: TaskStatus[] = ["Backlog", "Ready", "Running", "Review", "Done"];
 const statusOrder: Record<TaskStatus, number> = {
@@ -215,11 +222,11 @@ function App() {
   const [messages, setMessages] = useLocalMessages();
   const [events, setEvents] = useLocalEvents();
   const [inboxItems, setInboxItems] = useLocalInbox();
-  const [selectedTaskId, setSelectedTaskId] = useStateWithDefault("task-oauth");
-  const [selectedInboxId, setSelectedInboxId] = useStateWithDefault("inbox-plan");
-  const [activeTab, setActiveTab] = useState<Tab>("channel");
-  const [planApproved, setPlanApproved] = useState(false);
-  const [reviewState, setReviewState] = useState<ReviewState>("waiting");
+  const [selectedTaskId, setSelectedTaskId] = useStateWithDefault(prototypeState.selectedTaskId);
+  const [selectedInboxId, setSelectedInboxId] = useStateWithDefault(prototypeState.selectedInboxItemId);
+  const [activeTab, setActiveTab] = useState<Tab>(prototypeState.activeTimelineTab);
+  const [planApproved, setPlanApproved] = useState(prototypeState.planApproved);
+  const [reviewState, setReviewState] = useState<ReviewState>(initialReviewState);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? tasks[0];
   const selectedInbox = inboxItems.find((item) => item.id === selectedInboxId) ?? inboxItems[0];
@@ -227,14 +234,14 @@ function App() {
   const openInboxCount = inboxItems.filter((item) => item.state === "open").length;
   const doneCount = tasks.filter((task) => task.status === "Done").length;
 
-  function pushMessage(agent: AgentRole, kind: string, text: string, taskId?: string) {
+  function pushMessage(agent: DisplayAgentRole, kind: string, text: string, taskId?: string) {
     setMessages((current) => [
       ...current,
       { id: `m-${Date.now()}`, agent, kind, text, time: "now", taskId },
     ]);
   }
 
-  function pushEvent(agent: AgentRole, kind: string, text: string, taskId?: string, severity: ConsoleEvent["severity"] = "normal") {
+  function pushEvent(agent: DisplayAgentRole, kind: string, text: string, taskId?: string, severity: ConsoleEvent["severity"] = "normal") {
     setEvents((current) => [
       ...current,
       { id: `e-${Date.now()}`, agent, kind, text, time: "now", taskId, severity },
@@ -245,7 +252,7 @@ function App() {
     setPlanApproved(true);
     setInboxItems((current) =>
       current.map((item) =>
-        item.id === "inbox-plan" ? { ...item, state: "approved" } : item,
+        item.id === planInboxId ? { ...item, state: "approved" } : item,
       ),
     );
     pushMessage("Planner", "plan approved", "Plan approved. Coder can continue provider and login work.");
@@ -261,7 +268,7 @@ function App() {
     const action = state === "approved" ? "approved" : "sent back";
     pushMessage(selectedInbox.agent, state === "approved" ? "approval resolved" : "changes requested", `${selectedInbox.title} ${action}.`, selectedInbox.taskId);
     pushEvent(selectedInbox.agent, "inbox decision", `${selectedInbox.type}: ${selectedInbox.title} -> ${state}.`, selectedInbox.taskId, state === "approved" ? "ok" : "warn");
-    if (selectedInbox.id === "inbox-plan" && state === "approved") {
+    if (selectedInbox.id === planInboxId && state === "approved") {
       setPlanApproved(true);
     }
   }
@@ -336,7 +343,7 @@ function App() {
       <main className="workspace">
         <header className="topbar">
           <div className="project-title">
-            <span className="eyebrow">AgentTeam / Personal CRM</span>
+            <span className="eyebrow">AgentTeam / {prototypeState.projectName}</span>
             <h1>Operator Console</h1>
           </div>
           <div className="run-strip" aria-label="Run status">
@@ -361,7 +368,7 @@ function App() {
         <section className="goal-bar" aria-label="Current goal">
           <div>
             <span className="label">Current goal</span>
-            <strong>Add GitHub OAuth login and a protected dashboard.</strong>
+            <strong>{prototypeState.goal}</strong>
           </div>
           <button
             className={planApproved ? "success-button" : "primary-button"}
@@ -559,19 +566,19 @@ function App() {
               <div className="review-summary">
                 <div>
                   <span>Changed files</span>
-                  <strong>{reviewTask.files.join(", ")}</strong>
+                  <strong>{reviewGate.changedFiles.join(", ")}</strong>
                 </div>
                 <div>
                   <span>Diff summary</span>
-                  <strong>Provider setup, route guard, and smoke coverage prepared.</strong>
+                  <strong>{reviewGate.diffSummary.join(" ")}</strong>
                 </div>
                 <div>
                   <span>Tests</span>
-                  <strong>Smoke checks queued; tester confidence 78%.</strong>
+                  <strong>{reviewGate.tests.map((test) => `${test.command}: ${test.summary}`).join(" ")}</strong>
                 </div>
                 <div>
                   <span>Risk note</span>
-                  <strong>OAuth callback and env secrets require operator confirmation.</strong>
+                  <strong>{reviewGate.riskNotes.join(" ")}</strong>
                 </div>
               </div>
               <div className="button-row">
