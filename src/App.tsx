@@ -26,6 +26,7 @@ import type {
   ActivityEventType,
   AgentRole,
   AgentStatus,
+  DelegatedRun,
   InboxItemType,
   RiskLevel,
   TaskStatus as DomainTaskStatus,
@@ -143,6 +144,8 @@ const inboxTypeLabels: Record<InboxItemType, string> = {
 };
 
 const labelize = (value: string) => value.replace(/_/g, " ");
+const agentNameById = new Map(prototypeState.agents.map((agent) => [agent.id, agent.name]));
+const taskTitleById = new Map(prototypeState.tasks.map((task) => [task.id, task.title]));
 
 const agents: Agent[] = prototypeState.agents.map((agent) => ({
   id: agent.id,
@@ -199,6 +202,7 @@ const initialInbox: InboxItem[] = prototypeState.inboxItems.map((item) => ({
 const planInboxId =
   prototypeState.inboxItems.find((item) => item.type === "approve_plan")?.id ?? "";
 const reviewGate = prototypeState.reviewGate;
+const delegatedRuns = prototypeState.delegatedRuns;
 const initialReviewState: ReviewState =
   reviewGate.status === "approved"
     ? "approved"
@@ -391,6 +395,21 @@ function App() {
               <span>{agent.load}</span>
             </article>
           ))}
+        </section>
+
+        <section className="delegation-panel" aria-label="Delegated agent work">
+          <div className="panel-header">
+            <div>
+              <span className="label">Delegation tracker</span>
+              <h2>Assigned work and progress</h2>
+            </div>
+            <span className="hint">Provider, model, branch, budget, heartbeat</span>
+          </div>
+          <div className="delegation-grid">
+            {delegatedRuns.map((run) => (
+              <DelegatedRunCard key={run.id} run={run} />
+            ))}
+          </div>
         </section>
 
         <div className="console-grid">
@@ -594,6 +613,50 @@ function App() {
         </div>
       </main>
     </div>
+  );
+}
+
+function DelegatedRunCard({ run }: { run: DelegatedRun }) {
+  return (
+    <article className={`delegation-card ${run.status}`}>
+      <div className="delegation-topline">
+        <span className={`provider-chip provider-${run.provider}`}>{run.provider}</span>
+        <span className={`run-status run-status-${run.status}`}>{labelize(run.status)}</span>
+      </div>
+      <div>
+        <h3>{taskTitleById.get(run.taskId) ?? run.taskId}</h3>
+        <p>{agentNameById.get(run.agentId) ?? run.agentId} · {run.role} · {run.model}</p>
+      </div>
+      <div className="progress-track" aria-label={`${run.progress}% complete`}>
+        <span style={{ width: `${run.progress}%` }} />
+      </div>
+      <dl className="run-meta">
+        <div>
+          <dt>Branch</dt>
+          <dd>{run.branch}</dd>
+        </div>
+        <div>
+          <dt>Worktree</dt>
+          <dd>{run.worktree}</dd>
+        </div>
+        <div>
+          <dt>Budget</dt>
+          <dd>{run.budget.tier} · {run.budget.maxMinutes}m</dd>
+        </div>
+        <div>
+          <dt>Heartbeat</dt>
+          <dd>{run.lastHeartbeat}</dd>
+        </div>
+      </dl>
+      <div className="run-step">
+        <span>Now</span>
+        <strong>{run.currentStep}</strong>
+      </div>
+      <div className="run-step">
+        <span>Next</span>
+        <strong>{run.nextStep}</strong>
+      </div>
+    </article>
   );
 }
 

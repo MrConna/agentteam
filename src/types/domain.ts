@@ -102,6 +102,29 @@ export interface ReviewGate {
   reviewerVerdict: string;
 }
 
+export interface DelegatedRun {
+  id: string;
+  taskId: string;
+  agentId: string;
+  provider: "claude" | "codex" | "antigravity" | "pi-agent";
+  model: string;
+  role: "planner" | "coder" | "reviewer" | "tester" | "scout" | "scribe";
+  branch: string;
+  worktree: string;
+  status: "queued" | "running" | "blocked" | "completed" | "merged" | "failed";
+  progress: number;
+  budget: {
+    tier: "cheap" | "standard" | "premium";
+    maxMinutes: number;
+    tokenPolicy: string;
+  };
+  assignedAt: string;
+  lastHeartbeat: string;
+  currentStep: string;
+  nextStep: string;
+  evidence: string[];
+}
+
 export interface PrototypeState {
   workspaceName: string;
   projectName: string;
@@ -117,4 +140,5 @@ export interface PrototypeState {
   activityEvents: ActivityEvent[];
   inboxItems: InboxItem[];
   reviewGate: ReviewGate;
+  delegatedRuns: DelegatedRun[];
 }

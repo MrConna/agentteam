@@ -76,6 +76,16 @@ Use Antigravity as a fast scout:
 
 Do not give it broad write ownership until AgentTeam can enforce file scopes and review gates.
 
+Initial integration mode:
+
+- Treat Antigravity as a configurable external adapter.
+- If a CLI command is available, AgentTeam stores the command template in adapter config.
+- If only an app/API is available, AgentTeam creates the task packet and records manual import/export until automation is possible.
+- Default permission: read-only scout.
+- Default output: compact scout report with relevant files, risks, and suggested next agent.
+
+Antigravity should usually run before Claude opus or Codex GPT-5.5. Its job is to reduce the premium model's context, not to make the final decision.
+
 ### pi-agent
 
 Use pi-agent for low-cost background work:
@@ -88,6 +98,31 @@ Use pi-agent for low-cost background work:
 - recurring maintenance checks
 
 Keep it mostly read-only or narrow-scope write until confidence is proven.
+
+Initial integration mode:
+
+```bash
+pi -p \
+  --model kimi-2.6 \
+  --tools read,grep,find,ls \
+  --session-dir .agentteam/sessions/pi \
+  "<task packet>"
+```
+
+Use `--tools read,grep,find,ls` for scouts and scribes. Enable `bash` only for tester tasks. Enable `edit/write` only after AgentTeam creates a scoped worktree and the human approves the write scope.
+
+Recommended pi-agent roles:
+
+- Kimi 2.6: scribe, context compression, docs draft, release notes.
+- DeepSeek v4 Flash: cheap code search, test-log triage, simple implementation spike.
+
+pi-agent should return short artifacts that can be passed to stronger agents:
+
+- scout report
+- log summary
+- doc draft
+- failing test summary
+- list of candidate files
 
 ## Token-Saving Strategy
 
@@ -217,6 +252,98 @@ Every adapter should return:
 - cost/time estimate when available
 
 AgentTeam stores these as activity events and shows them in the Run Console.
+
+### Delegation Tracking
+
+AgentTeam should persist every delegated run as a first-class record:
+
+```ts
+interface DelegatedRun {
+  id: string;
+  taskId: string;
+  agentId: string;
+  provider: "claude" | "codex" | "antigravity" | "pi-agent";
+  model: string;
+  role: "planner" | "coder" | "reviewer" | "tester" | "scout" | "scribe";
+  branch: string;
+  worktree: string;
+  status: "queued" | "running" | "blocked" | "completed" | "merged" | "failed";
+  progress: number;
+  assignedAt: string;
+  lastHeartbeat: string;
+  currentStep: string;
+  nextStep: string;
+  evidence: string[];
+}
+```
+
+The UI should show delegated runs separately from the task board. A task card answers "what work exists"; a delegated run answers "who is doing it, with which model, where, under what budget, and how far along."
+
+Progress sources:
+
+- CLI process state: queued/running/exited.
+- Heartbeat file: `.agentteam/runs/<run-id>/heartbeat.json`.
+- Git state: branch exists, changed files, commit exists, merged.
+- Artifact state: summary/report/test output exists.
+- Human state: blocked on approval or inbox question.
+
+Minimum run directory:
+
+```text
+.agentteam/runs/<run-id>/
+├── task.json
+├── heartbeat.json
+├── transcript.jsonl
+├── summary.md
+├── artifacts/
+└── result.json
+```
+
+This is how the human sees delegated work:
+
+- Delegation tracker: all active and recent runs.
+- Task board: task status and owner.
+- Run console: event stream from all tools.
+- Agent inbox: blockers and approvals.
+- Review gate: final diff, test evidence, and verdict.
+
+### Adapter Command Templates
+
+Claude planner/reviewer:
+
+```bash
+claude -p \
+  --permission-mode bypassPermissions \
+  --allowedTools Read,Write,Edit,MultiEdit,Bash \
+  "<task packet>"
+```
+
+Codex worker/tester:
+
+```bash
+codex exec \
+  -C "<worktree>" \
+  -s danger-full-access \
+  --dangerously-bypass-approvals-and-sandbox \
+  "<task packet>"
+```
+
+pi-agent scout/scribe:
+
+```bash
+pi -p \
+  --model "<model>" \
+  --tools read,grep,find,ls \
+  --session-dir ".agentteam/sessions/pi" \
+  "<task packet>"
+```
+
+Antigravity scout:
+
+```bash
+# Configurable until a stable CLI/API is available.
+<antigravity-command> "<task packet>"
+```
 
 ## Worktree Policy
 
