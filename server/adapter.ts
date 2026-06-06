@@ -11,6 +11,9 @@ import {
   touchRun,
   uid,
 } from "./store.ts";
+import type { RealRunOptions } from "./agentCli.ts";
+import { isRealProvider } from "./agentCli.ts";
+import { runRealTask } from "./realAdapter.ts";
 
 const J = (v: unknown) => JSON.stringify(v ?? []);
 
@@ -23,7 +26,18 @@ const J = (v: unknown) => JSON.stringify(v ?? []);
  * implement the same contract by shelling out to `codex exec` / `claude -p`
  * inside an isolated worktree and importing the resulting diff and test output.
  */
-export function runTask(runId: string, taskId: string): { ok: boolean; reason?: string } {
+export async function runTask(
+  runId: string,
+  taskId: string,
+  options: RealRunOptions = {},
+): Promise<{ ok: boolean; reason?: string }> {
+  if (isRealProvider(options.provider)) {
+    return runRealTask(runId, taskId, options);
+  }
+  return runSimulatedTask(runId, taskId);
+}
+
+function runSimulatedTask(runId: string, taskId: string): { ok: boolean; reason?: string } {
   const db = getDb();
   const task = getTask(runId, taskId);
   if (!task) return { ok: false, reason: "task_not_found" };
@@ -168,13 +182,16 @@ export function runTask(runId: string, taskId: string): { ok: boolean; reason?: 
 }
 
 /** Start the first ready task (used by the global Run action). */
-export function runNextReadyTask(runId: string): { ok: boolean; reason?: string; taskId?: string } {
+export async function runNextReadyTask(
+  runId: string,
+  options: RealRunOptions = {},
+): Promise<{ ok: boolean; reason?: string; taskId?: string }> {
   const row = getDb()
     .prepare(
       "SELECT id FROM tasks WHERE run_id = ? AND status = 'ready' ORDER BY sort_order, rowid LIMIT 1",
     )
     .get(runId) as { id: string } | undefined;
   if (!row) return { ok: false, reason: "no_ready_task" };
-  const result = runTask(runId, row.id);
+  const result = await runTask(runId, row.id, options);
   return { ...result, taskId: row.id };
 }

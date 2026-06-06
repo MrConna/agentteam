@@ -80,14 +80,14 @@ app.post("/api/runs/:runId/tasks/:taskId/move", (req, res) => {
   return ok(res, req.params.runId);
 });
 
-app.post("/api/runs/:runId/tasks/:taskId/run", (req, res) => {
-  const result = runTask(req.params.runId, req.params.taskId);
+app.post("/api/runs/:runId/tasks/:taskId/run", async (req, res) => {
+  const result = await runTask(req.params.runId, req.params.taskId, req.body ?? {});
   if (!result.ok) return res.status(409).json({ error: result.reason });
   return ok(res, req.params.runId);
 });
 
-app.post("/api/runs/:runId/run-next", (req, res) => {
-  const result = runNextReadyTask(req.params.runId);
+app.post("/api/runs/:runId/run-next", async (req, res) => {
+  const result = await runNextReadyTask(req.params.runId, req.body ?? {});
   if (!result.ok) return res.status(409).json({ error: result.reason });
   return ok(res, req.params.runId);
 });
