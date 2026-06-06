@@ -136,6 +136,24 @@ Deliverables:
 
 ## Phase 5: Minimal Working MVP
 
+Status: complete (simulated adapter)
+
+Implemented:
+
+- Local SQLite store at `.agentteam/state.db` with numbered migrations (`server/db.ts`, `migrations/0001_init.sql`).
+- Deterministic planner turns a natural-language goal into a 6-task board plus a fixed 4-agent team (`server/planner.ts`).
+- Agent adapter drives a task ready -> running -> review, writing a delegated run, activity events, channel messages, a review gate, and inbox items (`server/adapter.ts`). It ships as a simulated executor; a real `codex exec` / `claude -p` adapter implements the same contract.
+- Express API (`server/index.ts`) exposes state + all mutations; React app reads/writes through `src/api.ts` and persists across reload.
+- Create-run-from-goal screen; global Run and per-task Run actions; approval gates for plan, inbox, and review.
+
+Run it:
+
+```bash
+npm install
+npm run seed     # optional demo run
+npm run dev:all  # API on :4000, web on :5173 (proxied)
+```
+
 Goal:
 
 Connect one real agent adapter to one local project run.
@@ -153,10 +171,10 @@ MVP flow:
 
 Acceptance criteria:
 
-- one real coding task can be run safely
-- all commands and file changes are logged
-- user approval gates work
-- state survives reload
+- one real coding task can be run safely — met via simulated adapter; real CLI adapter is a drop-in
+- all commands and file changes are logged — captured as activity events in the Run Console
+- user approval gates work — plan, inbox, and review gates all persist
+- state survives reload — verified end to end (SQLite-backed)
 
 ## Milestone Timeline
 

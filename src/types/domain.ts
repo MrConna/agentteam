@@ -142,3 +142,35 @@ export interface PrototypeState {
   reviewGate: ReviewGate;
   delegatedRuns: DelegatedRun[];
 }
+
+/**
+ * State assembled by the backend for one run. Same shape as the prototype state
+ * but carries a runId and a list of review gates (one per task that reaches
+ * review) instead of a single hard-coded gate.
+ */
+export interface ServerState {
+  runId: string;
+  workspaceName: string;
+  projectName: string;
+  goal: string;
+  runStatus: "planning" | "running" | "paused" | "review" | "ready_to_ship";
+  selectedTaskId: string;
+  selectedInboxItemId: string;
+  activeTimelineTab: "channel" | "console";
+  planApproved: boolean;
+  agents: Agent[];
+  tasks: Task[];
+  channelMessages: ChannelMessage[];
+  activityEvents: ActivityEvent[];
+  inboxItems: InboxItem[];
+  reviewGates: ReviewGate[];
+  delegatedRuns: DelegatedRun[];
+}
+
+export interface RunSummary {
+  id: string;
+  projectName: string;
+  goal: string;
+  runStatus: string;
+  updatedAt: string;
+}

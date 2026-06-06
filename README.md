@@ -4,9 +4,27 @@ AgentTeam is a personal agent-team workspace for solo builders.
 
 It combines the developer-workbench feel of BridgeSpace with the AI-teammate model of Helio: agents do not live as a side chat. They own tasks, report progress in project channels, ask for approvals, and hand work back through review gates.
 
+## Run the app
+
+```bash
+npm install
+npm run seed     # optional: seed the Personal CRM demo run
+npm run dev:all  # API on :4000, web on :5173
+```
+
+Open http://localhost:5173. Enter a goal, approve the generated plan, press Run to
+execute a task into the review gate, then approve or request changes. State is
+stored in SQLite at `.agentteam/state.db` and survives reload.
+
 ## Project Status
 
-Stage: project kickoff
+Stage: minimal working MVP (Phase 5)
+
+- Goal -> task board via a planner, persisted in SQLite
+- Fixed 4-agent team, delegation tracker, project channel, run console
+- Agent execution drives tasks to a review gate with diff + tests + risk
+- Approval gates for plan, inbox, and review; follow-up task creation
+- Simulated agent adapter; real Codex/Claude CLI adapter is a drop-in (see `docs/multi-agent-team-architecture.md`)
 
 Current deliverables:
 
