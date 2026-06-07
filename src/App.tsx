@@ -17,11 +17,13 @@ import {
   ShieldCheck,
   Sparkles,
   Terminal,
+  TerminalSquare,
   UserCheck,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
+import { Terminals } from "./Terminals";
 import type {
   Agent,
   AgentRole,
@@ -175,7 +177,7 @@ function Console({
   const [selectedTaskId, setSelectedTaskId] = useState(state.selectedTaskId);
   const [selectedInboxId, setSelectedInboxId] = useState(state.selectedInboxItemId);
   const [activeTab, setActiveTab] = useState<Tab>(state.activeTimelineTab);
-  const [view, setView] = useState<"console" | "agents" | "inbox" | "review">("console");
+  const [view, setView] = useState<"console" | "agents" | "inbox" | "review" | "sessions">("console");
   const [pending, setPending] = useState(false);
   const [provider, setProvider] = useState<string>("simulated");
   const [model, setModel] = useState<string>("");
@@ -256,6 +258,9 @@ function Console({
         <button className={`rail-button ${view === "review" ? "active" : ""}`} title="Review gates" onClick={() => setView("review")}>
           <ShieldCheck size={18} />
         </button>
+        <button className={`rail-button ${view === "sessions" ? "active" : ""}`} title="Agent sessions (live terminals)" onClick={() => setView("sessions")}>
+          <TerminalSquare size={18} />
+        </button>
       </aside>
 
       <main className="workspace">
@@ -318,6 +323,8 @@ function Console({
           </div>
         </header>
 
+        {view !== "sessions" && (
+        <>
         <section className="goal-bar" aria-label="Current goal">
           <div>
             <span className="label">Current goal</span>
@@ -366,6 +373,8 @@ function Console({
               ))}
             </div>
           </section>
+        )}
+        </>
         )}
 
         {view === "console" && (
@@ -591,6 +600,8 @@ function Console({
           </aside>
         </div>
         )}
+
+        {view === "sessions" && <Terminals />}
 
         {view === "agents" && (
           <section className="view-panel" aria-label="Agents">

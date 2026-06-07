@@ -35,6 +35,20 @@ export const api = {
   listProviders: () =>
     http<{ id: string; label: string; models: string[] }[]>("/api/providers"),
 
+  listSessions: () =>
+    http<{ id: string; provider: string; label: string; command: string; status: string }[]>("/api/sessions"),
+
+  launchableProviders: () =>
+    http<{ id: string; label: string }[]>("/api/sessions/launchable"),
+
+  createSession: (provider: string, cols?: number, rows?: number) =>
+    http<{ id: string; provider: string; label: string; command: string; status: string }>("/api/sessions", {
+      method: "POST",
+      body: JSON.stringify({ provider, cols, rows }),
+    }),
+
+  killSession: (id: string) => http<{ ok: boolean }>(`/api/sessions/${id}`, { method: "DELETE" }),
+
   createRun: (input: { goal: string; projectName?: string; workspaceName?: string }) =>
     http<ServerState>("/api/runs", { method: "POST", body: JSON.stringify(input) }),
 

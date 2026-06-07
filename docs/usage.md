@@ -35,6 +35,7 @@ The icon column on the far left switches the main view:
 | 🤖 Agents | Each agent (role, status, responsibility) and its delegated runs |
 | 📥 Inbox | The full decision queue; a red badge shows the open count |
 | 🛡 Review gates | Every task's review gate with changed files, diff, tests, and approve / request-changes |
+| ▢ Sessions | Live agent terminals — a tiled grid where each tile is a real interactive CLI session (see §7) |
 
 ## 3. 主流程 Core flow
 
@@ -134,3 +135,25 @@ curl -X POST localhost:4000/api/runs/<run>/run-next \
   executable on PATH (often a shell alias). Set `AGENTTEAM_CMD_<PROVIDER>`.
 - **Port in use**: `PORT=4100 npm run server` (also update the proxy target in
   `vite.config.ts`).
+
+## 7. 实时 agent 终端 Live agent sessions
+
+The **Sessions** view (▢ in the left rail) is a tiled terminal multiplexer: each
+tile is a real interactive CLI/TUI (`claude`, `codex`, `agy`, `pi`) running under
+a PTY on the server, streamed to the browser. You can watch output and type into
+it like a normal terminal. This is the "roles as live agent CLI sessions" model.
+
+- Click **+ Claude Code / + Codex / + Antigravity (Gemini) / + pi-agent** to spawn
+  a session. The tile launches the real CLI in interactive mode in the repo root.
+- Click inside a tile and type — keystrokes go straight to the agent's TUI.
+- The **✕** on a tile kills that session.
+- Sessions are server-side processes; they keep running if you switch views, and
+  recent output replays when a tile re-attaches.
+
+Binaries: the same `AGENTTEAM_CMD_<PROVIDER>` overrides apply, so point a provider
+at the right executable/wrapper if its name differs (e.g. a `claude` wrapper that
+sets a proxy). No `AGENTTEAM_REAL_ADAPTER_ENABLED` flag is needed for sessions —
+that guard only governs the batch task adapter; sessions are always live.
+
+Implementation: `server/terminals.ts` (node-pty) + a WebSocket at
+`/ws/terminal?id=<sessionId>`; the UI is `src/Terminals.tsx` (xterm.js).

@@ -1,8 +1,20 @@
+import http from "node:http";
 import cors from "cors";
 import express from "express";
+import { WebSocketServer } from "ws";
 import { runNextReadyTask, runTask } from "./adapter.ts";
 import { providerOptions } from "./agentRegistry.ts";
 import { getDb } from "./db.ts";
+import {
+  attach,
+  createSession,
+  getSession,
+  kill,
+  launchableProviders,
+  listSessions,
+  resize,
+  write,
+} from "./terminals.ts";
 import {
   acceptFollowUp,
   approvePlan,
@@ -102,6 +114,54 @@ app.post("/api/runs/:runId/tasks/:taskId/review", (req, res) => {
   return ok(res, req.params.runId);
 });
 
-app.listen(PORT, () => {
-  console.log(`[server] AgentTeam API on http://localhost:${PORT}`);
+// --- Live terminal sessions -------------------------------------------------
+
+app.get("/api/sessions", (_req, res) => res.json(listSessions()));
+app.get("/api/sessions/launchable", (_req, res) => res.json(launchableProviders()));
+
+app.post("/api/sessions", (req, res) => {
+  const { provider, cols, rows } = req.body ?? {};
+  if (!provider || typeof provider !== "string") return res.status(400).json({ error: "provider_required" });
+  try {
+    const s = createSession({ provider, cols, rows });
+    return res.json({ id: s.id, provider: s.provider, label: s.label, command: s.command, status: s.status });
+  } catch (e) {
+    return res.status(500).json({ error: "spawn_failed", detail: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+app.delete("/api/sessions/:id", (req, res) => {
+  kill(req.params.id);
+  return res.json({ ok: true });
+});
+
+const server = http.createServer(app);
+
+// WebSocket: /ws/terminal?id=<sessionId> streams pty output and accepts input.
+const wss = new WebSocketServer({ server, path: "/ws/terminal" });
+wss.on("connection", (ws, req) => {
+  const id = new URL(req.url ?? "", "http://localhost").searchParams.get("id") ?? "";
+  const session = getSession(id);
+  if (!session) {
+    ws.send(JSON.stringify({ type: "error", message: "session_not_found" }));
+    ws.close();
+    return;
+  }
+  const detach = attach(id, (data) => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ type: "data", data }));
+  });
+  ws.on("message", (raw) => {
+    try {
+      const msg = JSON.parse(String(raw));
+      if (msg.type === "input") write(id, msg.data);
+      else if (msg.type === "resize") resize(id, msg.cols, msg.rows);
+    } catch {
+      /* ignore malformed frames */
+    }
+  });
+  ws.on("close", () => detach?.());
+});
+
+server.listen(PORT, () => {
+  console.log(`[server] AgentTeam API + WS on http://localhost:${PORT}`);
 });
