@@ -4,7 +4,7 @@ AgentTeam does not run one big model for everything. Each provider is a real
 CLI/TUI that is strongest with its own model, so work is routed to the best tool
 per role and each one runs its top model.
 
-Source of truth: `server/agentRegistry.ts`.
+Source of truth: `agents.config.json` (loaded by `server/agentRegistry.ts`).
 
 ## Providers
 

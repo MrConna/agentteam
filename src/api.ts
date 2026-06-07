@@ -1,7 +1,7 @@
 import type { RunSummary, ServerState } from "./types/domain";
 
 export type RunTaskOptions = {
-  provider?: "simulated" | "claude" | "codex" | "antigravity" | "pi-agent";
+  provider?: string;
   model?: string;
   dryRun?: boolean;
   prompt?: string;
@@ -31,6 +31,9 @@ export const api = {
     http<ServerState | null>(`/api/state${runId ? `?runId=${runId}` : ""}`),
 
   listRuns: () => http<RunSummary[]>("/api/runs"),
+
+  listProviders: () =>
+    http<{ id: string; label: string; models: string[] }[]>("/api/providers"),
 
   createRun: (input: { goal: string; projectName?: string; workspaceName?: string }) =>
     http<ServerState>("/api/runs", { method: "POST", body: JSON.stringify(input) }),

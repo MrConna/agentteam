@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { runNextReadyTask, runTask } from "./adapter.ts";
+import { providerOptions } from "./agentRegistry.ts";
 import { getDb } from "./db.ts";
 import {
   acceptFollowUp,
@@ -29,6 +30,8 @@ const ok = (res: express.Response, runId: string) => {
 };
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+
+app.get("/api/providers", (_req, res) => res.json(providerOptions()));
 
 app.get("/api/runs", (_req, res) => res.json(listRuns()));
 

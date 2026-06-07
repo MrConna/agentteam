@@ -52,7 +52,7 @@ review completed…). The **Run console** is the command/file/test evidence stre
 ## 4. 把不同 agent 用起来 Run each TUI on its best model
 
 AgentTeam routes work to the strongest tool per role and lets each run its top
-model. Source of truth: `server/agentRegistry.ts`.
+model. Source of truth: `agents.config.json` (zero-code: add a provider there). See docs/extending-agents.md.
 
 | Provider | Default model | CLI (default) | Best for |
 |---|---|---|---|

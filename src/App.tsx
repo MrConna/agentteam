@@ -57,15 +57,10 @@ const AGENT_LOAD: Record<Agent["status"], string> = {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const labelize = (s: string) => s.replace(/_/g, " ");
 
-// Each TUI runs its own best model. Mirrors server/agentRegistry.ts; the first
-// model per provider is the strongest. "simulated" needs no CLI.
-const PROVIDER_UI: { id: string; label: string; models: string[] }[] = [
-  { id: "simulated", label: "Simulated (no CLI)", models: [] },
-  { id: "claude", label: "Claude Code", models: ["opus", "sonnet", "haiku"] },
-  { id: "codex", label: "Codex", models: ["gpt-5-codex", "gpt-5", "o4-mini"] },
-  { id: "antigravity", label: "Antigravity (Gemini)", models: ["gemini-3.5-flash", "gemini-3.1-pro"] },
-  { id: "pi-agent", label: "pi-agent", models: ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"] },
-];
+type ProviderUi = { id: string; label: string; models: string[] };
+// Fallback until /api/providers loads; the server (agents.config.json) is the
+// source of truth, so adding an agent there shows up here with no code change.
+const PROVIDER_UI_FALLBACK: ProviderUi[] = [{ id: "simulated", label: "Simulated (no CLI)", models: [] }];
 
 export default function App() {
   const [state, setState] = useState<ServerState | null>(null);
@@ -185,13 +180,18 @@ function Console({
   const [provider, setProvider] = useState<string>("simulated");
   const [model, setModel] = useState<string>("");
   const [dryRun, setDryRun] = useState(true);
+  const [providerList, setProviderList] = useState<ProviderUi[]>(PROVIDER_UI_FALLBACK);
 
-  const providerUi = PROVIDER_UI.find((p) => p.id === provider) ?? PROVIDER_UI[0];
+  useEffect(() => {
+    api.listProviders().then(setProviderList).catch(() => setProviderList(PROVIDER_UI_FALLBACK));
+  }, []);
+
+  const providerUi = providerList.find((p) => p.id === provider) ?? providerList[0];
   const runOptions = () =>
     provider === "simulated"
       ? undefined
       : {
-          provider: provider as "claude" | "codex" | "antigravity" | "pi-agent",
+          provider,
           model: model || undefined,
           dryRun,
         };
@@ -283,14 +283,14 @@ function Console({
                 }}
                 aria-label="Agent provider"
               >
-                {PROVIDER_UI.map((p) => (
+                {providerList.map((p) => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
               </select>
-              {providerUi.models.length > 0 && (
+              {(providerUi?.models.length ?? 0) > 0 && (
                 <select value={model} onChange={(e) => setModel(e.target.value)} aria-label="Model">
-                  <option value="">{providerUi.models[0]} (best)</option>
-                  {providerUi.models.map((m) => (
+                  <option value="">{providerUi!.models[0]} (best)</option>
+                  {providerUi!.models.map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>

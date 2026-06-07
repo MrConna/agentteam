@@ -1,0 +1,50 @@
+{
+  "$schema": "./agents.schema.json",
+  "defaultPromptTemplate": "You are an AgentTeam delegated coding agent.\nRun ID: {runId}\nTask ID: {taskId}\nTitle: {title}\nDescription: {description}\nWrite scope: {fileScope}\nFollow AGENTS.md and docs/agent-development-standard.md.\nBefore handoff, report changed files, commands run, validation, blockers, and follow-ups.",
+  "roleRouting": {
+    "planner": "claude",
+    "coder": "codex",
+    "reviewer": "claude",
+    "tester": "codex",
+    "scout": "antigravity",
+    "scribe": "pi-agent"
+  },
+  "providers": [
+    {
+      "id": "claude",
+      "label": "Claude Code",
+      "command": "claude",
+      "defaultModel": "opus",
+      "models": ["opus", "sonnet", "haiku"],
+      "args": ["--model", "{model}", "-p", "{prompt}"],
+      "bestFor": "Planning and review judgment"
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "command": "codex",
+      "defaultModel": "gpt-5-codex",
+      "models": ["gpt-5-codex", "gpt-5", "o4-mini"],
+      "args": ["exec", "--model", "{model}", "{prompt}"],
+      "bestFor": "Repo-grounded implementation and tests"
+    },
+    {
+      "id": "antigravity",
+      "label": "Antigravity (Gemini)",
+      "command": "agy",
+      "defaultModel": "gemini-3.5-flash",
+      "models": ["gemini-3.5-flash", "gemini-3.1-pro"],
+      "args": ["--model", "{model}", "-p", "{prompt}"],
+      "bestFor": "Fast scouting and exploration"
+    },
+    {
+      "id": "pi-agent",
+      "label": "pi-agent",
+      "command": "pi",
+      "defaultModel": "deepseek/deepseek-v4-flash",
+      "models": ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"],
+      "args": ["-p", "--tools", "read,grep,find,ls,bash,edit,write", "--session-dir", ".agentteam/sessions/{runId}", "--model", "{model}", "{prompt}"],
+      "bestFor": "Cheap scout, scribe, and local models"
+    }
+  ]
+}

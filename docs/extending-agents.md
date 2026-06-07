@@ -33,98 +33,66 @@ curl -X POST localhost:4000/api/runs/<run>/tasks/<task>/run \
 
 ---
 
-## 2. Add a brand-new provider/TUI
+## 2. Add a brand-new provider/TUI — edit one JSON file
 
-Example: add `ollama` (local models). A provider needs (a) an id, (b) a CLI
-command shape, (c) a default model. Touch these files — grep `pi-agent` to see
-every spot, since the new one mirrors it:
+Agents are declared in **`agents.config.json`** at the repo root. Adding one is
+zero code and no migration: add an entry to `providers`. Example — `ollama`:
 
-### 2.1 Domain + DB
-
-`src/types/domain.ts` — add to the `DelegatedRun.provider` union:
-
-```ts
-provider: "claude" | "codex" | "antigravity" | "pi-agent" | "ollama";
-```
-
-`migrations/000X_add_ollama.sql` (new file — the `delegated_runs.provider`
-column has a CHECK constraint, so a new provider needs a migration):
-
-```sql
--- SQLite can't ALTER a CHECK; rebuild the constraint or, simplest for dev,
--- recreate the column check. For local dev you can also just delete
--- .agentteam/state.db and re-seed. For a real migration, see note below.
-```
-
-> Dev shortcut: during development, `rm -rf .agentteam` and `npm run seed`
-> recreates the DB from the latest schema. For a durable migration that keeps
-> data, add a numbered SQL file that rebuilds `delegated_runs` with the new
-> CHECK (SQLite requires create-new-table + copy + drop for CHECK changes).
-
-### 2.2 Registry — `server/agentRegistry.ts`
-
-Add the id to `RealProvider`, an entry to `PROVIDERS`, and (optionally) route a
-role to it:
-
-```ts
-export type RealProvider = "claude" | "codex" | "antigravity" | "pi-agent" | "ollama";
-
-export const PROVIDERS = {
-  // ...existing...
-  ollama: {
-    id: "ollama",
-    label: "Ollama (local)",
-    command: "ollama",
-    defaultModel: "llama3.1",
-    models: ["llama3.1", "qwen2.5-coder"],
-    bestFor: "Offline local models",
-  },
-};
-
-// optional: EXTENDED_ROLE_ROUTING.scribe = "ollama";
-```
-
-`resolveCommand("ollama")` then honors `AGENTTEAM_CMD_OLLAMA` automatically.
-
-### 2.3 CLI command shape — `server/agentCli.ts`
-
-Add the id to `RealAgentProvider` and `isRealProvider`, then a branch in
-`buildCliCommand` that builds the right argv for that CLI:
-
-```ts
-export type RealAgentProvider = "claude" | "codex" | "antigravity" | "pi-agent" | "ollama";
-
-// inside buildCliCommand, before the pi-agent fallback:
-if (input.provider === "ollama") {
-  // ollama run <model> <prompt>
-  const args = ["run", input.model ?? "llama3.1", prompt];
-  return toCommand(input.provider, resolveCommand("ollama"), args, input.worktree);
+```json
+{
+  "id": "ollama",
+  "label": "Ollama (local)",
+  "command": "ollama",
+  "defaultModel": "llama3.1",
+  "models": ["llama3.1", "qwen2.5-coder"],
+  "args": ["run", "{model}", "{prompt}"],
+  "bestFor": "Offline local models"
 }
 ```
 
-### 2.4 Frontend — `src/api.ts` and `src/App.tsx`
+Optionally route a role to it in the same file:
 
-`src/api.ts` — add to the `RunTaskOptions.provider` union.
-
-`src/App.tsx` — add to `PROVIDER_UI` so it shows in the picker:
-
-```ts
-{ id: "ollama", label: "Ollama (local)", models: ["llama3.1", "qwen2.5-coder"] },
+```json
+"roleRouting": { "scribe": "ollama" }
 ```
 
-That's it. The real adapter (`server/realAdapter.ts`) is provider-agnostic: it
-already creates the worktree, runs `buildCliCommand(...)`, imports the diff, and
-writes artifacts — no change needed.
+That is the whole change. On restart:
+
+- the provider shows up in the UI picker (served from `GET /api/providers`),
+- `isRealProvider("ollama")` is true, so it routes to the real adapter,
+- `buildCliCommand` renders the argv from `args` (no per-provider code),
+- the DB accepts the new provider id (no CHECK constraint since migration 0002),
+- `resolveCommand("ollama")` honors `AGENTTEAM_CMD_OLLAMA` to point at a binary.
+
+### Field reference
+
+| Field | Meaning |
+|---|---|
+| `id` | provider id used in API/UI/DB |
+| `label` | shown in the picker |
+| `command` | executable to spawn (override at runtime with `AGENTTEAM_CMD_<ID>`) |
+| `defaultModel` | used when no model is selected |
+| `models` | dropdown options (first = "best") |
+| `args` | argv template; tokens `{model}` `{prompt}` `{runId}` `{taskId}` are substituted |
+| `promptTemplate` | optional; per-provider prompt. Falls back to `defaultPromptTemplate` |
+| `bestFor` | hint text |
+
+### Prompt templates
+
+The top-level `defaultPromptTemplate` applies to every provider; a provider can
+override it with its own `promptTemplate`. Tokens: `{runId}` `{taskId}` `{title}`
+`{description}` `{fileScope}`.
+
+> If `agents.config.json` is missing or invalid, the server falls back to a
+> built-in default (claude/codex/antigravity/pi-agent) so the app always boots.
 
 ### Checklist
 
-- [ ] `src/types/domain.ts` provider union
-- [ ] migration / `rm -rf .agentteam` for dev
-- [ ] `server/agentRegistry.ts` `RealProvider` + `PROVIDERS` (+ routing)
-- [ ] `server/agentCli.ts` `RealAgentProvider` + `isRealProvider` + `buildCliCommand` branch
-- [ ] `src/api.ts` `RunTaskOptions.provider`
-- [ ] `src/App.tsx` `PROVIDER_UI`
-- [ ] a test in `server/_tests/run.ts` (see §3)
+- [ ] Add a provider entry to `agents.config.json`
+- [ ] (optional) route a role to it in `roleRouting`
+- [ ] (optional) `AGENTTEAM_CMD_<ID>` if the binary isn't on PATH by that name
+- [ ] Restart (`npm run dev:all`)
+- [ ] (optional) add a command-shape test in `server/_tests/run.ts` (see §3)
 
 ---
 

@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import type { Task } from "../src/types/domain.ts";
-import { resolveCommand } from "./agentRegistry.ts";
+import { buildArgs, isConfiguredProvider, renderPrompt, resolveCommand } from "./agentRegistry.ts";
 
-export type RealAgentProvider = "claude" | "codex" | "antigravity" | "pi-agent";
+/** Any configured provider id (free-text, validated against agents.config.json). */
+export type RealAgentProvider = string;
 
 export interface RealRunOptions {
   provider?: RealAgentProvider | "simulated";
@@ -36,32 +37,22 @@ export interface CliExecutionResult {
 const MAX_OUTPUT_CHARS = 12_000;
 
 export function isRealProvider(value: unknown): value is RealAgentProvider {
-  return (
-    value === "claude" ||
-    value === "codex" ||
-    value === "antigravity" ||
-    value === "pi-agent"
-  );
+  return isConfiguredProvider(value);
 }
 
 export function realAdapterEnabled(): boolean {
   return process.env.AGENTTEAM_REAL_ADAPTER_ENABLED === "1";
 }
 
-export function buildPrompt(task: Task, runId: string): string {
-  const scope = task.fileScope.length ? task.fileScope.join(", ") : "No file scope declared";
-  return [
-    "You are an AgentTeam delegated coding agent.",
-    `Run ID: ${runId}`,
-    `Task ID: ${task.id}`,
-    `Title: ${task.title}`,
-    `Description: ${task.description}`,
-    `Write scope: ${scope}`,
-    "Follow AGENTS.md and docs/agent-development-standard.md.",
-    "Before handoff, report changed files, commands run, validation, blockers, and follow-ups.",
-  ].join("\n");
+export function buildPrompt(task: Task, runId: string, provider = "claude"): string {
+  return renderPrompt(provider, task, runId);
 }
 
+/**
+ * Build the CLI command for any configured provider purely from its template in
+ * agents.config.json. No per-provider branches: argv comes from the provider's
+ * `args` template with {model}/{prompt}/{runId}/{taskId} substituted.
+ */
 export function buildCliCommand(input: {
   provider: RealAgentProvider;
   task: Task;
@@ -70,34 +61,16 @@ export function buildCliCommand(input: {
   prompt?: string;
   model?: string;
 }): CliCommand {
-  const prompt = input.prompt?.trim() || buildPrompt(input.task, input.runId);
-  if (input.provider === "claude") {
-    const args = ["-p", prompt];
-    if (input.model) args.unshift("--model", input.model);
-    return toCommand(input.provider, resolveCommand("claude"), args, input.worktree);
-  }
-  if (input.provider === "codex") {
-    const args = ["exec", prompt];
-    if (input.model) args.splice(1, 0, "--model", input.model);
-    return toCommand(input.provider, resolveCommand("codex"), args, input.worktree);
-  }
-  if (input.provider === "antigravity") {
-    // Antigravity/Gemini is driven through the `agy` CLI in non-interactive mode
-    // (`agy --model <id> -p <prompt>`; agy uses --model, there is no -m).
-    const args = ["-p", prompt];
-    if (input.model) args.unshift("--model", input.model);
-    return toCommand(input.provider, resolveCommand("antigravity"), args, input.worktree);
-  }
-  const args = [
-    "-p",
-    "--tools",
-    "read,grep,find,ls,bash,edit,write",
-    "--session-dir",
-    `.agentteam/sessions/${input.runId}`,
-  ];
-  if (input.model) args.push("--model", input.model);
-  args.push(prompt);
-  return toCommand(input.provider, resolveCommand("pi-agent"), args, input.worktree);
+  const prompt = input.prompt?.trim() || renderPrompt(input.provider, input.task, input.runId);
+  const model = input.model ?? "";
+  const args = buildArgs({
+    provider: input.provider,
+    model,
+    prompt,
+    runId: input.runId,
+    taskId: input.task.id,
+  });
+  return toCommand(input.provider, resolveCommand(input.provider), args, input.worktree);
 }
 
 export async function executeCliCommand(

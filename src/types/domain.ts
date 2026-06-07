@@ -106,7 +106,7 @@ export interface DelegatedRun {
   id: string;
   taskId: string;
   agentId: string;
-  provider: "claude" | "codex" | "antigravity" | "pi-agent";
+  provider: string;
   model: string;
   role: "planner" | "coder" | "reviewer" | "tester" | "scout" | "scribe";
   branch: string;

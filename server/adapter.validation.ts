@@ -17,6 +17,7 @@ type EvidenceItem = {
   schema?: string;
   provider?: string;
   status?: string;
+  summary?: string;
   command?: string | { display?: string; provider?: string };
   blockers?: string[];
   validation?: { command: string; result: string; summary: string }[];

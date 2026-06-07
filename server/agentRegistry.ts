@@ -1,141 +1,162 @@
-import type { AgentRole } from "../src/types/domain.ts";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Task } from "../src/types/domain.ts";
 
 /**
- * Agent registry — the single source of truth for "which TUI runs which model".
+ * Agent registry — config-driven single source of truth for "which TUI runs
+ * which model, with which command and prompt".
  *
- * AgentTeam does not run one big model for everything. Each provider is a real
- * CLI/TUI that is strongest with its own model, so we route work to the best
- * tool per role and let each one use its top model:
+ * Providers are declared in agents.config.json at the repo root. Adding a new
+ * agent is zero-code: add an entry there. Each provider is a real CLI/TUI that
+ * is strongest with its own model, so work is routed per role and each runs its
+ * top model. If the config file is missing or invalid, a built-in default
+ * (claude/codex/antigravity/pi-agent) is used so the app always boots.
  *
- *   claude code   -> Opus        (judgment: planning, review; CLI binary is `claude-official`)
- *   codex         -> GPT-5       (repo-grounded implementation, tests)
- *   antigravity   -> Gemini      (fast scouting; CLI binary is `agy`)
- *   pi-agent      -> DeepSeek / Kimi / local (cheap scout + scribe)
- *
- * Models here are sensible defaults; every field is overridable per run via the
- * API (RunTaskOptions.model) or the UI. Real execution stays guarded by
- * AGENTTEAM_REAL_ADAPTER_ENABLED=1 regardless of what is selected here.
+ * Every field is overridable at runtime:
+ *  - command:  env AGENTTEAM_CMD_<ID>  (e.g. AGENTTEAM_CMD_CLAUDE=/path/to/claude)
+ *  - model:    per-run via API/UI
+ * Real execution stays guarded by AGENTTEAM_REAL_ADAPTER_ENABLED=1 regardless.
  */
 
-export type RealProvider = "claude" | "codex" | "antigravity" | "pi-agent";
-export type AnyProvider = RealProvider | "simulated";
+const here = dirname(fileURLToPath(import.meta.url));
+const CONFIG_PATH = process.env.AGENTTEAM_AGENTS_CONFIG ?? join(here, "..", "agents.config.json");
 
 export interface ProviderProfile {
-  /** Domain provider id (matches DelegatedRun.provider). */
-  id: RealProvider;
-  /** Human label for the UI. */
+  id: string;
   label: string;
-  /** Actual executable invoked on the host. */
   command: string;
-  /** Best/default model for this provider. */
   defaultModel: string;
-  /** Selectable models surfaced in the UI (first is the strongest). */
   models: string[];
-  /** What this TUI is best at — shown as a hint. */
+  /** argv template; tokens {model} {prompt} {runId} {taskId} are substituted. */
+  args: string[];
+  /** optional per-provider prompt template; falls back to defaultPromptTemplate. */
+  promptTemplate?: string;
   bestFor: string;
 }
 
-export const PROVIDERS: Record<RealProvider, ProviderProfile> = {
-  claude: {
-    id: "claude",
-    label: "Claude Code",
-    command: "claude-official",
-    defaultModel: "opus",
-    models: ["opus", "sonnet", "haiku"],
-    bestFor: "Planning and review judgment",
+export interface AgentsConfig {
+  defaultPromptTemplate: string;
+  roleRouting: Record<string, string>;
+  providers: ProviderProfile[];
+}
+
+const DEFAULT_PROMPT =
+  "You are an AgentTeam delegated coding agent.\nRun ID: {runId}\nTask ID: {taskId}\nTitle: {title}\nDescription: {description}\nWrite scope: {fileScope}\nFollow AGENTS.md and docs/agent-development-standard.md.\nBefore handoff, report changed files, commands run, validation, blockers, and follow-ups.";
+
+const DEFAULT_CONFIG: AgentsConfig = {
+  defaultPromptTemplate: DEFAULT_PROMPT,
+  roleRouting: {
+    planner: "claude",
+    coder: "codex",
+    reviewer: "claude",
+    tester: "codex",
+    scout: "antigravity",
+    scribe: "pi-agent",
   },
-  codex: {
-    id: "codex",
-    label: "Codex",
-    command: "codex",
-    defaultModel: "gpt-5-codex",
-    models: ["gpt-5-codex", "gpt-5", "o4-mini"],
-    bestFor: "Repo-grounded implementation and tests",
-  },
-  antigravity: {
-    id: "antigravity",
-    label: "Antigravity (Gemini)",
-    command: "agy",
-    defaultModel: "gemini-3.5-flash",
-    models: ["gemini-3.5-flash", "gemini-3.1-pro"],
-    bestFor: "Fast scouting and exploration",
-  },
-  "pi-agent": {
-    id: "pi-agent",
-    label: "pi-agent",
-    command: "pi",
-    // Provider-qualified ids are required by the pi CLI; short aliases fail.
-    defaultModel: "deepseek/deepseek-v4-flash",
-    models: [
-      "deepseek/deepseek-v4-flash",
-      "moonshotai-cn/kimi-k2.6",
-      "local/llama",
-    ],
-    bestFor: "Cheap scout, scribe, and local models",
-  },
+  providers: [
+    { id: "claude", label: "Claude Code", command: "claude", defaultModel: "opus", models: ["opus", "sonnet", "haiku"], args: ["--model", "{model}", "-p", "{prompt}"], bestFor: "Planning and review judgment" },
+    { id: "codex", label: "Codex", command: "codex", defaultModel: "gpt-5-codex", models: ["gpt-5-codex", "gpt-5", "o4-mini"], args: ["exec", "--model", "{model}", "{prompt}"], bestFor: "Repo-grounded implementation and tests" },
+    { id: "antigravity", label: "Antigravity (Gemini)", command: "agy", defaultModel: "gemini-3.5-flash", models: ["gemini-3.5-flash", "gemini-3.1-pro"], args: ["--model", "{model}", "-p", "{prompt}"], bestFor: "Fast scouting and exploration" },
+    { id: "pi-agent", label: "pi-agent", command: "pi", defaultModel: "deepseek/deepseek-v4-flash", models: ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"], args: ["-p", "--tools", "read,grep,find,ls,bash,edit,write", "--session-dir", ".agentteam/sessions/{runId}", "--model", "{model}", "{prompt}"], bestFor: "Cheap scout, scribe, and local models" },
+  ],
 };
 
-/**
- * Recommended provider per fixed team role. Mirrors the routing table in
- * docs/multi-agent-team-architecture.md.
- */
-export const ROLE_ROUTING: Record<AgentRole, RealProvider> = {
-  planner: "claude",
-  coder: "codex",
-  reviewer: "claude",
-  tester: "codex",
-};
+function loadConfig(): AgentsConfig {
+  if (!existsSync(CONFIG_PATH)) return DEFAULT_CONFIG;
+  try {
+    const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf8")) as Partial<AgentsConfig>;
+    if (!Array.isArray(raw.providers) || raw.providers.length === 0) return DEFAULT_CONFIG;
+    return {
+      defaultPromptTemplate: raw.defaultPromptTemplate || DEFAULT_PROMPT,
+      roleRouting: { ...DEFAULT_CONFIG.roleRouting, ...(raw.roleRouting ?? {}) },
+      providers: raw.providers as ProviderProfile[],
+    };
+  } catch (e) {
+    console.error(`[registry] invalid ${CONFIG_PATH}, using defaults:`, e);
+    return DEFAULT_CONFIG;
+  }
+}
 
-/** Extra roles used by delegated runs beyond the fixed board roles. */
-export const EXTENDED_ROLE_ROUTING: Record<string, RealProvider> = {
-  ...ROLE_ROUTING,
-  scout: "antigravity",
-  scribe: "pi-agent",
-};
+const CONFIG = loadConfig();
+const PROVIDER_MAP = new Map(CONFIG.providers.map((p) => [p.id, p]));
 
-export function isRealProvider(value: unknown): value is RealProvider {
-  return (
-    value === "claude" ||
-    value === "codex" ||
-    value === "antigravity" ||
-    value === "pi-agent"
+/** Back-compat: a record-like view some callers used. */
+export const PROVIDERS: Record<string, ProviderProfile> = Object.fromEntries(
+  CONFIG.providers.map((p) => [p.id, p]),
+);
+
+export function listProviders(): ProviderProfile[] {
+  return CONFIG.providers;
+}
+
+export function getProfile(provider: string): ProviderProfile | undefined {
+  return PROVIDER_MAP.get(provider);
+}
+
+/** A provider is "real" if it is a configured id (anything but the simulated default). */
+export function isConfiguredProvider(value: unknown): value is string {
+  return typeof value === "string" && value !== "simulated" && PROVIDER_MAP.has(value);
+}
+
+/** Resolve the executable to spawn. Env override AGENTTEAM_CMD_<ID> wins. */
+export function resolveCommand(provider: string): string {
+  const envKey = `AGENTTEAM_CMD_${provider.toUpperCase().replace(/-/g, "_")}`;
+  const override = process.env[envKey]?.trim();
+  return override || PROVIDER_MAP.get(provider)?.command || provider;
+}
+
+export function defaultModelFor(provider: string): string {
+  return PROVIDER_MAP.get(provider)?.defaultModel ?? "";
+}
+
+function substitute(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? vars[k] : `{${k}}`));
+}
+
+/** Render the prompt for a task using the provider's (or default) template. */
+export function renderPrompt(provider: string, task: Task, runId: string): string {
+  const profile = PROVIDER_MAP.get(provider);
+  const template = profile?.promptTemplate || CONFIG.defaultPromptTemplate;
+  return substitute(template, {
+    runId,
+    taskId: task.id,
+    title: task.title,
+    description: task.description,
+    fileScope: task.fileScope.length ? task.fileScope.join(", ") : "No file scope declared",
+  });
+}
+
+/** Build argv from the provider's template, substituting {model}/{prompt}/{runId}/{taskId}. */
+export function buildArgs(input: {
+  provider: string;
+  model: string;
+  prompt: string;
+  runId: string;
+  taskId: string;
+}): string[] {
+  const profile = PROVIDER_MAP.get(input.provider);
+  const template = profile?.args ?? ["-p", "{prompt}"];
+  return template.map((tok) =>
+    substitute(tok, {
+      model: input.model,
+      prompt: input.prompt,
+      runId: input.runId,
+      taskId: input.taskId,
+    }),
   );
 }
 
-export function profileFor(provider: RealProvider): ProviderProfile {
-  return PROVIDERS[provider];
-}
-
-/**
- * Resolve the executable to spawn for a provider. An env override wins so the
- * operator can point a provider at the real binary or a wrapper script without
- * editing code, e.g.:
- *   AGENTTEAM_CMD_CLAUDE=/Users/me/.local/bin/claude
- *   AGENTTEAM_CMD_ANTIGRAVITY=agy
- *   AGENTTEAM_CMD_PI_AGENT=pi
- * This is the supported fix for shell aliases (e.g. `claude-official`), which a
- * bare child_process spawn cannot resolve.
- */
-export function resolveCommand(provider: RealProvider): string {
-  const envKey = `AGENTTEAM_CMD_${provider.toUpperCase().replace(/-/g, "_")}`;
-  const override = process.env[envKey]?.trim();
-  return override || PROVIDERS[provider].command;
-}
-
 /** Best provider+model for a role, e.g. routeForRole("coder") -> codex/gpt-5-codex. */
-export function routeForRole(role: string): { provider: RealProvider; model: string } {
-  const provider = EXTENDED_ROLE_ROUTING[role] ?? "codex";
-  return { provider, model: PROVIDERS[provider].defaultModel };
-}
-
-export function defaultModelFor(provider: RealProvider): string {
-  return PROVIDERS[provider].defaultModel;
+export function routeForRole(role: string): { provider: string; model: string } {
+  const provider = CONFIG.roleRouting[role] ?? CONFIG.providers[1]?.id ?? CONFIG.providers[0].id;
+  return { provider, model: defaultModelFor(provider) };
 }
 
 /** UI-facing list including the simulated default. */
-export function providerOptions(): { id: AnyProvider; label: string }[] {
+export function providerOptions(): { id: string; label: string; models: string[] }[] {
   return [
-    { id: "simulated", label: "Simulated (no CLI)" },
-    ...Object.values(PROVIDERS).map((p) => ({ id: p.id, label: p.label })),
+    { id: "simulated", label: "Simulated (no CLI)", models: [] },
+    ...CONFIG.providers.map((p) => ({ id: p.id, label: p.label, models: p.models })),
   ];
 }
