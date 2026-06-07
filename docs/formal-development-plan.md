@@ -17,6 +17,9 @@ Implement the first real adapter loop for Claude Code, Codex CLI, and pi-agent:
 - import summaries, changed files, commands, validation, blockers, and result status
 - keep review gates explicit before merge
 
+Phase 6 has landed. The next development batch is tracked in
+[Phase 7 Task Assignments](phase-7-task-assignments.md).
+
 ## First Task Split
 
 | Task | Owner | Role | Branch | Worktree | Output |
