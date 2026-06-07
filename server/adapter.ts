@@ -34,6 +34,9 @@ export async function runTask(
   if (isRealProvider(options.provider)) {
     return runRealTask(runId, taskId, options);
   }
+  if (options.provider && options.provider !== "simulated") {
+    return { ok: false, reason: "bad_provider" };
+  }
   return runSimulatedTask(runId, taskId);
 }
 
