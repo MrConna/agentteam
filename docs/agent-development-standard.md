@@ -374,6 +374,24 @@ Best default tools:
 - pi-agent Kimi 2.6
 - Claude sonnet4.6 for polished external docs
 
+## Delegation Responsibility Rules
+
+Use this ownership split before assigning work:
+
+| Agent | Owns | Does not own |
+|---|---|---|
+| Codex integrator | unified entrypoint, shared context, task splitting, file-scope limits, repo-grounded implementation, validation, artifact import, merge decisions | broad unbounded brainstorming, replacing human approval, final review of its own high-risk implementation |
+| Claude Code | complex reasoning, architecture judgment, ambiguous planning, code review, risk assessment | default bulk implementation, low-value log triage, mechanical docs |
+| pi-agent | low-cost generation, option completion, parallel scout work, validation checklists, log triage, docs drafts | final architecture decisions, broad unsupervised writes, high-risk security/data changes |
+| Antigravity/Gemini | fast exploration through `agy`, broad reconnaissance, candidate approaches, first-pass comparison | final merge decisions, critical code review, long-lived context arbitration |
+
+Routing rule of thumb:
+
+1. Start with pi-agent or Antigravity when the goal needs cheap exploration or context compression.
+2. Use Codex for implementation, tests, integration, and result aggregation.
+3. Bring in Claude for high-uncertainty planning, architecture/security/data risk, and final review gates.
+4. Keep merge authority with Codex integrator or the human operator only.
+
 ## Worktree, Commit, and Merge Standard
 
 Use [delegated-task-template.md](delegated-task-template.md) when assigning work to any agent.

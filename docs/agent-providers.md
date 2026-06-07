@@ -22,6 +22,25 @@ Notes:
 - pi-agent requires provider-qualified model ids (`provider/id`); short aliases fail.
 - Models are defaults; every run can override the model via the API or UI.
 
+## Team responsibility contract
+
+Codex is the control-plane agent: it is the unified entrypoint, owns shared
+context, decomposes goals into scoped tasks, dispatches agents, reads their
+artifacts, runs validation, and merges stable results.
+
+Claude Code is the high-judgment advisor: use it for complex reasoning,
+ambiguous planning, architecture decisions, code review, and risk assessment.
+It should usually return plans, findings, and decision records instead of doing
+large default implementation work.
+
+pi-agent is the low-cost parallel worker: use DeepSeek, Kimi, or local models
+for fast generation, option completion, scout reports, validation checklists,
+log triage, and documentation drafts. Keep writes narrow and worktree-scoped.
+
+Antigravity/Gemini is the fast exploration scout: use `agy` for cheap discovery,
+candidate approaches, broad codebase reconnaissance, and first-pass comparison.
+It reduces context for Codex or Claude; it does not make final merge decisions.
+
 ## Role routing
 
 Mirrors `docs/multi-agent-team-architecture.md`:

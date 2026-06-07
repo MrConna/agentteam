@@ -27,6 +27,34 @@ Agents can be backed by different tools/models, but AgentTeam should expose them
 
 Operational updates, run artifacts, progress rules, and handoff requirements are defined in [agent-development-standard.md](agent-development-standard.md).
 
+## Team Responsibility Contract
+
+Codex owns the control plane. It is the unified entrypoint for the human, keeps
+shared context current, breaks goals into tasks, limits file scope, dispatches
+agents, imports artifacts, runs validation, resolves conflicts, and merges only
+stable handoff states.
+
+Claude Code owns high-uncertainty judgment. Use it for complex reasoning,
+architecture choices, ambiguous requirements, code review, and risk assessment.
+Claude should be invoked at decision and review gates, not as the default
+mechanical code writer.
+
+pi-agent owns low-cost parallel execution. Use DeepSeek, Kimi, or local models
+for fast generation, option completion, scout reports, validation checklists,
+log triage, and documentation drafts. It can run many small tasks in parallel,
+but write scope must stay narrow and worktree-bound.
+
+Antigravity/Gemini owns fast exploration. Use `agy` for broad reconnaissance,
+candidate approaches, and cheap first-pass comparison. Its job is to compress
+context for Codex and Claude, not to decide what ships.
+
+Default delegation principle:
+
+1. Cheap scout first for unclear or broad work.
+2. Codex implements and validates repo-grounded changes.
+3. Claude reviews high-risk, ambiguous, or architecture-changing decisions.
+4. Only Codex or the human integrator merges to `main`.
+
 ## Recommended Role Routing
 
 | Role | Default Tool | Premium Escalation | Best For |

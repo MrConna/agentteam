@@ -13,7 +13,7 @@
     {
       "id": "claude",
       "label": "Claude Code",
-      "command": "claude",
+      "command": "claude-official",
       "defaultModel": "opus",
       "models": ["opus", "sonnet", "haiku"],
       "args": ["--model", "{model}", "-p", "{prompt}"],
