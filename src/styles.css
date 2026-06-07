@@ -1087,3 +1087,36 @@ button:disabled {
   font-size: 12px;
   margin: 4px 0 0;
 }
+
+/* ---- Agent / model picker (topbar) ---- */
+.agent-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 12px;
+}
+.agent-picker select {
+  background: var(--panel-3);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 4px;
+  font: inherit;
+  max-width: 170px;
+}
+.agent-picker select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.agent-picker .dry-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--amber);
+  white-space: nowrap;
+}

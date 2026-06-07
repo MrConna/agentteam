@@ -256,4 +256,4 @@ Do not substitute DeepSeek-backed Claude settings for original Claude Code revie
 
 - Whether to add a first-class test runner dependency or use lightweight executable validation first.
 - Whether real adapter execution should create worktrees itself or require pre-created worktrees from the integrator.
-- Whether UI provider selection belongs in Phase 7 or after the CLI path is fully validated.
+- ~~Whether UI provider selection belongs in Phase 7 or after the CLI path is fully validated.~~ Resolved: shipped. Topbar agent picker (provider + model + dry-run) drives `runTask`/`runNext`; antigravity (gemini) added as a 4th real provider; per-provider best model + role routing live in `server/agentRegistry.ts`. See `docs/agent-providers.md`.

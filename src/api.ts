@@ -1,7 +1,7 @@
 import type { RunSummary, ServerState } from "./types/domain";
 
 export type RunTaskOptions = {
-  provider?: "simulated" | "claude" | "codex" | "pi-agent";
+  provider?: "simulated" | "claude" | "codex" | "antigravity" | "pi-agent";
   model?: string;
   dryRun?: boolean;
   prompt?: string;

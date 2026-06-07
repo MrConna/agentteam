@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import type { Task } from "../src/types/domain.ts";
+import { PROVIDERS } from "./agentRegistry.ts";
 
-export type RealAgentProvider = "claude" | "codex" | "pi-agent";
+export type RealAgentProvider = "claude" | "codex" | "antigravity" | "pi-agent";
 
 export interface RealRunOptions {
   provider?: RealAgentProvider | "simulated";
@@ -33,7 +34,12 @@ export interface CliExecutionResult {
 const MAX_OUTPUT_CHARS = 12_000;
 
 export function isRealProvider(value: unknown): value is RealAgentProvider {
-  return value === "claude" || value === "codex" || value === "pi-agent";
+  return (
+    value === "claude" ||
+    value === "codex" ||
+    value === "antigravity" ||
+    value === "pi-agent"
+  );
 }
 
 export function realAdapterEnabled(): boolean {
@@ -66,12 +72,18 @@ export function buildCliCommand(input: {
   if (input.provider === "claude") {
     const args = ["-p", prompt];
     if (input.model) args.unshift("--model", input.model);
-    return toCommand(input.provider, "claude", args, input.worktree);
+    return toCommand(input.provider, PROVIDERS.claude.command, args, input.worktree);
   }
   if (input.provider === "codex") {
     const args = ["exec", prompt];
     if (input.model) args.splice(1, 0, "--model", input.model);
-    return toCommand(input.provider, "codex", args, input.worktree);
+    return toCommand(input.provider, PROVIDERS.codex.command, args, input.worktree);
+  }
+  if (input.provider === "antigravity") {
+    // Antigravity is driven through the `gemini` CLI in non-interactive mode.
+    const args = ["-p", prompt];
+    if (input.model) args.unshift("-m", input.model);
+    return toCommand(input.provider, PROVIDERS.antigravity.command, args, input.worktree);
   }
   const args = [
     "-p",
@@ -82,7 +94,7 @@ export function buildCliCommand(input: {
   ];
   if (input.model) args.push("--model", input.model);
   args.push(prompt);
-  return toCommand(input.provider, "pi", args, input.worktree);
+  return toCommand(input.provider, PROVIDERS["pi-agent"].command, args, input.worktree);
 }
 
 export async function executeCliCommand(

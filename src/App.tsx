@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Clock3,
   Code2,
+  Cpu,
   GitPullRequest,
   Inbox,
   LayoutDashboard,
@@ -55,6 +56,16 @@ const AGENT_LOAD: Record<Agent["status"], string> = {
 };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const labelize = (s: string) => s.replace(/_/g, " ");
+
+// Each TUI runs its own best model. Mirrors server/agentRegistry.ts; the first
+// model per provider is the strongest. "simulated" needs no CLI.
+const PROVIDER_UI: { id: string; label: string; models: string[] }[] = [
+  { id: "simulated", label: "Simulated (no CLI)", models: [] },
+  { id: "claude", label: "Claude Code", models: ["opus", "sonnet", "haiku"] },
+  { id: "codex", label: "Codex", models: ["gpt-5-codex", "gpt-5", "o4-mini"] },
+  { id: "antigravity", label: "Antigravity (Gemini)", models: ["gemini-2.5-pro", "gemini-2.5-flash"] },
+  { id: "pi-agent", label: "pi-agent", models: ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"] },
+];
 
 export default function App() {
   const [state, setState] = useState<ServerState | null>(null);
@@ -170,6 +181,19 @@ function Console({
   const [selectedInboxId, setSelectedInboxId] = useState(state.selectedInboxItemId);
   const [activeTab, setActiveTab] = useState<Tab>(state.activeTimelineTab);
   const [pending, setPending] = useState(false);
+  const [provider, setProvider] = useState<string>("simulated");
+  const [model, setModel] = useState<string>("");
+  const [dryRun, setDryRun] = useState(true);
+
+  const providerUi = PROVIDER_UI.find((p) => p.id === provider) ?? PROVIDER_UI[0];
+  const runOptions = () =>
+    provider === "simulated"
+      ? undefined
+      : {
+          provider: provider as "claude" | "codex" | "antigravity" | "pi-agent",
+          model: model || undefined,
+          dryRun,
+        };
 
   const roleByAgent = useMemo(
     () => new Map(state.agents.map((a) => [a.id, ROLE_LABEL[a.role]])),
@@ -239,6 +263,34 @@ function Console({
             <span className="metric"><ClipboardCheck size={14} /> {doneCount}/{tasks.length} done</span>
           </div>
           <div className="top-actions">
+            <div className="agent-picker" title="Each TUI runs its own best model">
+              <Cpu size={14} />
+              <select
+                value={provider}
+                onChange={(e) => {
+                  setProvider(e.target.value);
+                  setModel("");
+                }}
+                aria-label="Agent provider"
+              >
+                {PROVIDER_UI.map((p) => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+              {providerUi.models.length > 0 && (
+                <select value={model} onChange={(e) => setModel(e.target.value)} aria-label="Model">
+                  <option value="">{providerUi.models[0]} (best)</option>
+                  {providerUi.models.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              )}
+              {provider !== "simulated" && (
+                <label className="dry-toggle" title="Dry run builds the command without executing the CLI">
+                  <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} /> dry-run
+                </label>
+              )}
+            </div>
             <button className="icon-button" title="New run" onClick={() => setState(null as unknown as ServerState)}>
               <Plus size={15} />
             </button>
@@ -248,8 +300,8 @@ function Console({
             <button
               className="primary-button small"
               disabled={pending || !state.planApproved}
-              title={state.planApproved ? "Run next ready task" : "Approve the plan first"}
-              onClick={() => act(() => api.runNext(runId))}
+              title={state.planApproved ? "Run next ready task with the selected agent" : "Approve the plan first"}
+              onClick={() => act(() => api.runNext(runId, runOptions()))}
             >
               <Play size={15} /> Run
             </button>
@@ -465,7 +517,7 @@ function Console({
                 </div>
                 <div className="button-row">
                   {canRunTask ? (
-                    <button className="primary-button" disabled={pending} onClick={() => act(() => api.runTask(runId, selectedTask.id))}>
+                    <button className="primary-button" disabled={pending} onClick={() => act(() => api.runTask(runId, selectedTask.id, runOptions()))}>
                       <Play size={15} /> Run task
                     </button>
                   ) : (

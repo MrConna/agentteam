@@ -15,8 +15,10 @@ import {
   buildCliCommand,
   executeCliCommand,
   isRealProvider,
+  type RealAgentProvider,
   type RealRunOptions,
 } from "./agentCli.ts";
+import { defaultModelFor } from "./agentRegistry.ts";
 import { createRunResult, createTaskPacket } from "./runArtifacts.ts";
 
 const J = (v: unknown) => JSON.stringify(v ?? []);
@@ -196,8 +198,6 @@ export async function runRealTask(
   return { ok: true };
 }
 
-function defaultModel(provider: "claude" | "codex" | "pi-agent"): string {
-  if (provider === "claude") return "sonnet4.6";
-  if (provider === "codex") return "GPT-5";
-  return "deepseek/deepseek-v4-flash";
+function defaultModel(provider: RealAgentProvider): string {
+  return defaultModelFor(provider);
 }
