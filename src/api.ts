@@ -49,6 +49,18 @@ export const api = {
 
   killSession: (id: string) => http<{ ok: boolean }>(`/api/sessions/${id}`, { method: "DELETE" }),
 
+  // Chat-style sessions
+  chatProviders: () =>
+    http<{ id: string; label: string; models: string[]; defaultModel: string }[]>("/api/chat/providers"),
+  listChat: () =>
+    http<{ id: string; provider: string; label: string; model: string; status: string }[]>("/api/chat"),
+  createChat: (provider: string, model: string) =>
+    http<{ id: string; provider: string; label: string; model: string; status: string }>("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ provider, model }),
+    }),
+  killChat: (id: string) => http<{ ok: boolean }>(`/api/chat/${id}`, { method: "DELETE" }),
+
   createRun: (input: { goal: string; projectName?: string; workspaceName?: string }) =>
     http<ServerState>("/api/runs", { method: "POST", body: JSON.stringify(input) }),
 

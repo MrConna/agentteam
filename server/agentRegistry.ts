@@ -28,8 +28,10 @@ export interface ProviderProfile {
   command: string;
   defaultModel: string;
   models: string[];
-  /** argv template; tokens {model} {prompt} {runId} {taskId} are substituted. */
+  /** argv template; tokens {model} {prompt} {runId} {taskId} {sessionId} are substituted. */
   args: string[];
+  /** optional argv for follow-up chat turns (continuity, e.g. --continue). */
+  resumeArgs?: string[];
   /** optional per-provider prompt template; falls back to defaultPromptTemplate. */
   promptTemplate?: string;
   bestFor: string;
@@ -55,10 +57,10 @@ const DEFAULT_CONFIG: AgentsConfig = {
     scribe: "pi-agent",
   },
   providers: [
-    { id: "claude", label: "Claude Code", command: "claude", defaultModel: "opus", models: ["opus", "sonnet", "haiku"], args: ["--model", "{model}", "-p", "{prompt}"], bestFor: "Planning and review judgment" },
+    { id: "claude", label: "Claude Code", command: "claude", defaultModel: "opus", models: ["opus", "sonnet", "haiku"], args: ["--model", "{model}", "-p", "{prompt}"], resumeArgs: ["-p", "{prompt}", "--continue"], bestFor: "Planning and review judgment" },
     { id: "codex", label: "Codex", command: "codex", defaultModel: "gpt-5-codex", models: ["gpt-5-codex", "gpt-5", "o4-mini"], args: ["exec", "--model", "{model}", "{prompt}"], bestFor: "Repo-grounded implementation and tests" },
-    { id: "antigravity", label: "Antigravity (Gemini)", command: "agy", defaultModel: "gemini-3.5-flash", models: ["gemini-3.5-flash", "gemini-3.1-pro"], args: ["--model", "{model}", "-p", "{prompt}"], bestFor: "Fast scouting and exploration" },
-    { id: "pi-agent", label: "pi-agent", command: "pi", defaultModel: "deepseek/deepseek-v4-flash", models: ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"], args: ["-p", "--tools", "read,grep,find,ls,bash,edit,write", "--session-dir", ".agentteam/sessions/{runId}", "--model", "{model}", "{prompt}"], bestFor: "Cheap scout, scribe, and local models" },
+    { id: "antigravity", label: "Antigravity (Gemini)", command: "agy", defaultModel: "gemini-3.5-flash", models: ["gemini-3.5-flash", "gemini-3.1-pro"], args: ["--model", "{model}", "-p", "{prompt}"], resumeArgs: ["-p", "{prompt}", "-c"], bestFor: "Fast scouting and exploration" },
+    { id: "pi-agent", label: "pi-agent", command: "pi", defaultModel: "deepseek/deepseek-v4-flash", models: ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"], args: ["-p", "--tools", "read,grep,find,ls,bash,edit,write", "--session-dir", ".agentteam/sessions/{sessionId}", "--model", "{model}", "{prompt}"], resumeArgs: ["-p", "--session-dir", ".agentteam/sessions/{sessionId}", "--continue", "{prompt}"], bestFor: "Cheap scout, scribe, and local models" },
   ],
 };
 
@@ -143,6 +145,32 @@ export function buildArgs(input: {
       prompt: input.prompt,
       runId: input.runId,
       taskId: input.taskId,
+    }),
+  );
+}
+
+/**
+ * Build argv for a chat turn. First turn uses `args`; follow-ups use `resumeArgs`
+ * (continuity) when the provider defines them, else fall back to `args`.
+ * Tokens {model} {prompt} {message} {sessionId} are substituted.
+ */
+export function buildChatArgs(input: {
+  provider: string;
+  model: string;
+  message: string;
+  sessionId: string;
+  first: boolean;
+}): string[] | null {
+  const profile = PROVIDER_MAP.get(input.provider);
+  if (!profile) return null;
+  const template = input.first ? profile.args : profile.resumeArgs ?? profile.args;
+  return template.map((tok) =>
+    substitute(tok, {
+      model: input.model,
+      prompt: input.message,
+      message: input.message,
+      sessionId: input.sessionId,
+      runId: input.sessionId,
     }),
   );
 }

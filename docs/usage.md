@@ -35,7 +35,7 @@ The icon column on the far left switches the main view:
 | 🤖 Agents | Each agent (role, status, responsibility) and its delegated runs |
 | 📥 Inbox | The full decision queue; a red badge shows the open count |
 | 🛡 Review gates | Every task's review gate with changed files, diff, tests, and approve / request-changes |
-| ▢ Sessions | Live agent terminals — a tiled grid where each tile is a real interactive CLI session (see §7) |
+| ▢ Sessions | Chat with agents — a tiled grid where each tile is a chat session with one agent CLI (see §7) |
 
 ## 3. 主流程 Core flow
 
@@ -136,24 +136,27 @@ curl -X POST localhost:4000/api/runs/<run>/run-next \
 - **Port in use**: `PORT=4100 npm run server` (also update the proxy target in
   `vite.config.ts`).
 
-## 7. 实时 agent 终端 Live agent sessions
+## 7. 跟 agent 对话 Chat sessions
 
-The **Sessions** view (▢ in the left rail) is a tiled terminal multiplexer: each
-tile is a real interactive CLI/TUI (`claude`, `codex`, `agy`, `pi`) running under
-a PTY on the server, streamed to the browser. You can watch output and type into
-it like a normal terminal. This is the "roles as live agent CLI sessions" model.
+The **Sessions** view (▢ in the left rail) is a tiled chat workspace: each tile
+is a conversation with one agent CLI. You **configure** it (provider + model) and
+**chat** with it (type a message, get a streamed reply).
 
-- Click **+ Claude Code / + Codex / + Antigravity (Gemini) / + pi-agent** to spawn
-  a session. The tile launches the real CLI in interactive mode in the repo root.
-- Click inside a tile and type — keystrokes go straight to the agent's TUI.
-- The **✕** on a tile kills that session.
-- Sessions are server-side processes; they keep running if you switch views, and
-  recent output replays when a tile re-attaches.
+How it works: each message runs the provider's CLI in non-interactive (print)
+mode — `claude -p`, `codex exec`, `agy -p`, `pi -p` — and streams the reply back.
+Follow-up turns use the CLI's resume flag (`--continue` / `-c` / `--session-dir`)
+for conversation continuity. This is robust across agents because it never
+depends on a full-screen TUI rendering inside a web terminal.
 
-Binaries: the same `AGENTTEAM_CMD_<PROVIDER>` overrides apply, so point a provider
+- Pick **provider** and **model** in the top bar, then **New session**.
+- Type in a tile's box and **Send** (Enter to send, Shift+Enter for newline).
+- The **✕** closes a session.
+
+Binaries: the same `AGENTTEAM_CMD_<PROVIDER>` overrides apply — point a provider
 at the right executable/wrapper if its name differs (e.g. a `claude` wrapper that
-sets a proxy). No `AGENTTEAM_REAL_ADAPTER_ENABLED` flag is needed for sessions —
-that guard only governs the batch task adapter; sessions are always live.
+sets a proxy). No `AGENTTEAM_REAL_ADAPTER_ENABLED` flag is needed for chat — that
+guard only governs the batch task adapter.
 
-Implementation: `server/terminals.ts` (node-pty) + a WebSocket at
-`/ws/terminal?id=<sessionId>`; the UI is `src/Terminals.tsx` (xterm.js).
+Per-provider chat behavior (command + continuity) is configured in
+`agents.config.json` via `args` / `resumeArgs`. Implementation: `server/chat.ts`
++ a WebSocket at `/ws/chat?id=<sessionId>`; the UI is `src/Terminals.tsx`.

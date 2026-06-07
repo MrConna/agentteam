@@ -4,6 +4,15 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { runNextReadyTask, runTask } from "./adapter.ts";
 import { providerOptions } from "./agentRegistry.ts";
+import {
+  attachChat,
+  chatProviders,
+  createChatSession,
+  getChatSession,
+  killChatSession,
+  listChatSessions,
+  sendMessage,
+} from "./chat.ts";
 import { getDb } from "./db.ts";
 import {
   attach,
@@ -135,10 +144,43 @@ app.delete("/api/sessions/:id", (req, res) => {
   return res.json({ ok: true });
 });
 
+// --- Chat-style agent sessions ----------------------------------------------
+
+app.get("/api/chat/providers", (_req, res) => res.json(chatProviders()));
+app.get("/api/chat", (_req, res) => res.json(listChatSessions()));
+app.get("/api/chat/:id", (req, res) => {
+  const s = getChatSession(req.params.id);
+  return s ? res.json(s) : res.status(404).json({ error: "not_found" });
+});
+app.post("/api/chat", (req, res) => {
+  const { provider, model } = req.body ?? {};
+  const s = createChatSession({ provider, model });
+  return s ? res.json(getChatSession(s.id)) : res.status(400).json({ error: "bad_provider" });
+});
+app.delete("/api/chat/:id", (req, res) => {
+  killChatSession(req.params.id);
+  return res.json({ ok: true });
+});
+
 const server = http.createServer(app);
 
+// Two WS endpoints share one HTTP server. Using `noServer` + a single upgrade
+// router avoids the path-conflict where one WebSocketServer 400s the other's path.
+const wss = new WebSocketServer({ noServer: true });
+const chatWss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (req, socket, head) => {
+  const path = new URL(req.url ?? "", "http://localhost").pathname;
+  if (path === "/ws/terminal") {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+  } else if (path === "/ws/chat") {
+    chatWss.handleUpgrade(req, socket, head, (ws) => chatWss.emit("connection", ws, req));
+  } else {
+    socket.destroy();
+  }
+});
+
 // WebSocket: /ws/terminal?id=<sessionId> streams pty output and accepts input.
-const wss = new WebSocketServer({ server, path: "/ws/terminal" });
 wss.on("connection", (ws, req) => {
   const id = new URL(req.url ?? "", "http://localhost").searchParams.get("id") ?? "";
   const session = getSession(id);
@@ -157,6 +199,34 @@ wss.on("connection", (ws, req) => {
       else if (msg.type === "resize") resize(id, msg.cols, msg.rows);
     } catch {
       /* ignore malformed frames */
+    }
+  });
+  ws.on("close", () => detach?.());
+});
+
+// Chat WS: streams chat events; client sends {type:"message", text}.
+chatWss.on("connection", (ws, req) => {
+  const id = new URL(req.url ?? "", "http://localhost").searchParams.get("id") ?? "";
+  const session = getChatSession(id);
+  if (!session) {
+    ws.send(JSON.stringify({ type: "error", message: "session_not_found" }));
+    ws.close();
+    return;
+  }
+  // Replay transcript so a (re)connecting client sees history.
+  ws.send(JSON.stringify({ type: "history", messages: session.messages }));
+  const detach = attachChat(id, (e) => {
+    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(e));
+  });
+  ws.on("message", (raw) => {
+    try {
+      const msg = JSON.parse(String(raw));
+      if (msg.type === "message") {
+        const r = sendMessage(id, String(msg.text ?? ""));
+        if (!r.ok) ws.send(JSON.stringify({ type: "error", message: r.reason }));
+      }
+    } catch {
+      /* ignore */
     }
   });
   ws.on("close", () => detach?.());

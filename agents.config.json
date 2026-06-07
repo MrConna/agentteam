@@ -17,6 +17,7 @@
       "defaultModel": "opus",
       "models": ["opus", "sonnet", "haiku"],
       "args": ["--model", "{model}", "-p", "{prompt}"],
+      "resumeArgs": ["-p", "{prompt}", "--continue"],
       "bestFor": "Planning and review judgment"
     },
     {
@@ -35,6 +36,7 @@
       "defaultModel": "gemini-3.5-flash",
       "models": ["gemini-3.5-flash", "gemini-3.1-pro"],
       "args": ["--model", "{model}", "-p", "{prompt}"],
+      "resumeArgs": ["-p", "{prompt}", "-c"],
       "bestFor": "Fast scouting and exploration"
     },
     {
@@ -43,7 +45,8 @@
       "command": "pi",
       "defaultModel": "deepseek/deepseek-v4-flash",
       "models": ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"],
-      "args": ["-p", "--tools", "read,grep,find,ls,bash,edit,write", "--session-dir", ".agentteam/sessions/{runId}", "--model", "{model}", "{prompt}"],
+      "args": ["-p", "--tools", "read,grep,find,ls,bash,edit,write", "--session-dir", ".agentteam/sessions/{sessionId}", "--model", "{model}", "{prompt}"],
+      "resumeArgs": ["-p", "--session-dir", ".agentteam/sessions/{sessionId}", "--continue", "{prompt}"],
       "bestFor": "Cheap scout, scribe, and local models"
     }
   ]
