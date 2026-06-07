@@ -56,8 +56,8 @@ export const PROVIDERS: Record<RealProvider, ProviderProfile> = {
     id: "antigravity",
     label: "Antigravity (Gemini)",
     command: "agy",
-    defaultModel: "gemini-2.5-pro",
-    models: ["gemini-2.5-pro", "gemini-2.5-flash"],
+    defaultModel: "gemini-3.5-flash",
+    models: ["gemini-3.5-flash", "gemini-3.1-pro"],
     bestFor: "Fast scouting and exploration",
   },
   "pi-agent": {

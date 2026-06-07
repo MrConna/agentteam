@@ -63,7 +63,7 @@ const PROVIDER_UI: { id: string; label: string; models: string[] }[] = [
   { id: "simulated", label: "Simulated (no CLI)", models: [] },
   { id: "claude", label: "Claude Code", models: ["opus", "sonnet", "haiku"] },
   { id: "codex", label: "Codex", models: ["gpt-5-codex", "gpt-5", "o4-mini"] },
-  { id: "antigravity", label: "Antigravity (Gemini)", models: ["gemini-2.5-pro", "gemini-2.5-flash"] },
+  { id: "antigravity", label: "Antigravity (Gemini)", models: ["gemini-3.5-flash", "gemini-3.1-pro"] },
   { id: "pi-agent", label: "pi-agent", models: ["deepseek/deepseek-v4-flash", "moonshotai-cn/kimi-k2.6", "local/llama"] },
 ];
 

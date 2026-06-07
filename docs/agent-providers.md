@@ -12,7 +12,7 @@ Source of truth: `server/agentRegistry.ts`.
 |---|---|---|---|---|
 | Claude Code | `claude-official` | `opus` | sonnet, haiku | Planning and review judgment |
 | Codex | `codex` | `gpt-5-codex` | gpt-5, o4-mini | Repo-grounded implementation and tests |
-| Antigravity (Gemini) | `agy` | `gemini-2.5-pro` | gemini-2.5-flash | Fast scouting and exploration |
+| Antigravity (Gemini) | `agy` | `gemini-3.5-flash` | gemini-3.1-pro | Fast scouting and exploration |
 | pi-agent | `pi` | `deepseek/deepseek-v4-flash` | moonshotai-cn/kimi-k2.6, local/llama | Cheap scout, scribe, local models |
 | Simulated | — | — | — | Default; no CLI, deterministic evidence trail |
 
@@ -32,7 +32,7 @@ Mirrors `docs/multi-agent-team-architecture.md`:
 | Coder | codex / gpt-5-codex |
 | Reviewer | claude / opus |
 | Tester | codex / gpt-5-codex |
-| Scout | antigravity / gemini-2.5-pro |
+| Scout | antigravity / gemini-3.5-flash |
 | Scribe | pi-agent / deepseek-v4-flash |
 
 ## Command shapes
@@ -40,7 +40,7 @@ Mirrors `docs/multi-agent-team-architecture.md`:
 ```bash
 claude-official --model opus -p "<task packet>"
 codex exec --model gpt-5-codex "<task packet>"
-agy -m gemini-2.5-pro -p "<task packet>"
+agy --model gemini-3.5-flash -p "<task packet>"
 pi -p --tools read,grep,find,ls,bash,edit,write --session-dir .agentteam/sessions/<run> --model deepseek/deepseek-v4-flash "<task packet>"
 ```
 
@@ -69,5 +69,5 @@ curl -X POST localhost:4000/api/runs/<run>/tasks/<task>/run
 # real provider, dry-run (no execution, evidence persisted)
 curl -X POST localhost:4000/api/runs/<run>/tasks/<task>/run \
   -H 'content-type: application/json' \
-  -d '{"provider":"antigravity","model":"gemini-2.5-pro","dryRun":true}'
+  -d '{"provider":"antigravity","model":"gemini-3.5-flash","dryRun":true}'
 ```

@@ -108,7 +108,7 @@ await check("dryRun records dry_run/blocked without executing", async () => {
   const dr = s.delegatedRuns.find((d) => d.provider === "antigravity");
   assert.ok(dr, "antigravity delegated run recorded");
   assert.equal(dr!.status, "blocked");
-  assert.equal(dr!.model, "gemini-2.5-pro");
+  assert.equal(dr!.model, "gemini-3.5-flash");
 });
 
 // --- antigravity command shape --------------------------------------------
@@ -123,12 +123,12 @@ await check("antigravity provider uses agy command", async () => {
     runId,
     worktree: "../agentteam-antigravity-validation",
     prompt: "noop",
-    model: "gemini-2.5-pro",
+    model: "gemini-3.5-flash",
   });
 
   assert.equal(command.command, "agy");
-  assert.equal(command.args[0], "-m");
-  assert.match(command.display, /^agy -m gemini-2\.5-pro -p\b/);
+  assert.equal(command.args[0], "--model");
+  assert.match(command.display, /^agy --model gemini-3\.5-flash -p\b/);
 });
 
 // --- bad provider is rejected ---------------------------------------------

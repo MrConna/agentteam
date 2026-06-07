@@ -58,7 +58,7 @@ model. Source of truth: `server/agentRegistry.ts`.
 |---|---|---|---|
 | Claude Code | opus | `claude-official` | Planning, review judgment |
 | Codex | gpt-5-codex | `codex` | Repo-grounded implementation, tests |
-| Antigravity (Gemini) | gemini-2.5-pro | `agy` | Fast scouting |
+| Antigravity (Gemini) | gemini-3.5-flash | `agy` | Fast scouting |
 | pi-agent | deepseek-v4-flash / kimi / local | `pi` | Cheap scout, scribe, local models |
 | Simulated | — | — | Default; no CLI, deterministic demo |
 
@@ -121,7 +121,7 @@ curl -X POST localhost:4000/api/runs -H 'content-type: application/json' \
 curl -X POST localhost:4000/api/runs/<run>/approve-plan
 curl -X POST localhost:4000/api/runs/<run>/run-next \
   -H 'content-type: application/json' \
-  -d '{"provider":"antigravity","model":"gemini-2.5-pro","dryRun":true}'
+  -d '{"provider":"antigravity","model":"gemini-3.5-flash","dryRun":true}'
 ```
 
 ## 6. Troubleshooting
