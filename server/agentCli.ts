@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import type { Task } from "../src/types/domain.ts";
-import { PROVIDERS } from "./agentRegistry.ts";
+import { resolveCommand } from "./agentRegistry.ts";
 
 export type RealAgentProvider = "claude" | "codex" | "antigravity" | "pi-agent";
 
@@ -74,18 +74,18 @@ export function buildCliCommand(input: {
   if (input.provider === "claude") {
     const args = ["-p", prompt];
     if (input.model) args.unshift("--model", input.model);
-    return toCommand(input.provider, PROVIDERS.claude.command, args, input.worktree);
+    return toCommand(input.provider, resolveCommand("claude"), args, input.worktree);
   }
   if (input.provider === "codex") {
     const args = ["exec", prompt];
     if (input.model) args.splice(1, 0, "--model", input.model);
-    return toCommand(input.provider, PROVIDERS.codex.command, args, input.worktree);
+    return toCommand(input.provider, resolveCommand("codex"), args, input.worktree);
   }
   if (input.provider === "antigravity") {
     // Antigravity/Gemini is driven through the `agy` CLI in non-interactive mode.
     const args = ["-p", prompt];
     if (input.model) args.unshift("-m", input.model);
-    return toCommand(input.provider, PROVIDERS.antigravity.command, args, input.worktree);
+    return toCommand(input.provider, resolveCommand("antigravity"), args, input.worktree);
   }
   const args = [
     "-p",
@@ -96,7 +96,7 @@ export function buildCliCommand(input: {
   ];
   if (input.model) args.push("--model", input.model);
   args.push(prompt);
-  return toCommand(input.provider, PROVIDERS["pi-agent"].command, args, input.worktree);
+  return toCommand(input.provider, resolveCommand("pi-agent"), args, input.worktree);
 }
 
 export async function executeCliCommand(

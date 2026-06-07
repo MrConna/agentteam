@@ -16,6 +16,9 @@ Open http://localhost:5173. Enter a goal, approve the generated plan, press Run 
 execute a task into the review gate, then approve or request changes. State is
 stored in SQLite at `.agentteam/state.db` and survives reload.
 
+Full usage guide (left rail, agent picker, running each TUI on its best model,
+enabling real execution): [docs/usage.md](docs/usage.md).
+
 ## Project Status
 
 Stage: minimal working MVP (Phase 5)

@@ -180,6 +180,7 @@ function Console({
   const [selectedTaskId, setSelectedTaskId] = useState(state.selectedTaskId);
   const [selectedInboxId, setSelectedInboxId] = useState(state.selectedInboxItemId);
   const [activeTab, setActiveTab] = useState<Tab>(state.activeTimelineTab);
+  const [view, setView] = useState<"console" | "agents" | "inbox" | "review">("console");
   const [pending, setPending] = useState(false);
   const [provider, setProvider] = useState<string>("simulated");
   const [model, setModel] = useState<string>("");
@@ -242,10 +243,19 @@ function Console({
     <div className="app-shell">
       <aside className="left-rail" aria-label="Workspace navigation">
         <div className="brand-mark">AT</div>
-        <button className="rail-button active" title="Command center"><LayoutDashboard size={18} /></button>
-        <button className="rail-button" title="Agents"><Bot size={18} /></button>
-        <button className="rail-button" title="Inbox"><Inbox size={18} /></button>
-        <button className="rail-button" title="Review gates"><ShieldCheck size={18} /></button>
+        <button className={`rail-button ${view === "console" ? "active" : ""}`} title="Command center" onClick={() => setView("console")}>
+          <LayoutDashboard size={18} />
+        </button>
+        <button className={`rail-button ${view === "agents" ? "active" : ""}`} title="Agents" onClick={() => setView("agents")}>
+          <Bot size={18} />
+        </button>
+        <button className={`rail-button ${view === "inbox" ? "active" : ""}`} title="Inbox" onClick={() => setView("inbox")}>
+          <Inbox size={18} />
+          {openInboxCount > 0 && <span className="rail-badge">{openInboxCount}</span>}
+        </button>
+        <button className={`rail-button ${view === "review" ? "active" : ""}`} title="Review gates" onClick={() => setView("review")}>
+          <ShieldCheck size={18} />
+        </button>
       </aside>
 
       <main className="workspace">
@@ -358,6 +368,7 @@ function Console({
           </section>
         )}
 
+        {view === "console" && (
         <div className="console-grid">
           <section className="board-panel" aria-label="Task board">
             <div className="panel-header">
@@ -579,6 +590,113 @@ function Console({
             </section>
           </aside>
         </div>
+        )}
+
+        {view === "agents" && (
+          <section className="view-panel" aria-label="Agents">
+            <div className="panel-header"><div><span className="label">Agents</span><h2>Team and delegated work</h2></div></div>
+            <div className="agents-detail">
+              {state.agents.map((a) => {
+                const runs = state.delegatedRuns.filter((d) => d.agentId === a.id);
+                return (
+                  <article className="agent-detail-card" key={a.id}>
+                    <div className="agent-detail-head">
+                      <div className={`agent-avatar ${a.role}`}>{ROLE_LABEL[a.role].slice(0, 1)}</div>
+                      <div>
+                        <strong>{a.name}</strong>
+                        <span>{ROLE_LABEL[a.role]} · {AGENT_LOAD[a.status]}</span>
+                      </div>
+                    </div>
+                    <p>{a.responsibility}</p>
+                    <div className="agent-detail-update">{a.lastUpdate}</div>
+                    {runs.length > 0 && (
+                      <ul className="agent-run-list">
+                        {runs.map((r) => (
+                          <li key={r.id}>
+                            <span className={`provider-chip provider-${r.provider}`}>{r.provider}</span>
+                            {r.model} · {titleByTask.get(r.taskId) ?? r.taskId} · {labelize(r.status)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {view === "inbox" && (
+          <section className="view-panel" aria-label="Inbox">
+            <div className="panel-header"><div><span className="label">Agent inbox</span><h2>Decision queue ({openInboxCount} open)</h2></div></div>
+            <div className="inbox-detail-list">
+              {inboxItems.map((item) => (
+                <article className={`inbox-detail-card ${item.status}`} key={item.id}>
+                  <div className="inbox-detail-top">
+                    <span className="label">{labelize(item.type)}</span>
+                    <span className={`status-badge status-${item.status === "open" ? "review" : "done"}`}>{item.status}</span>
+                  </div>
+                  <strong>{item.title}</strong>
+                  <p>{item.summary}</p>
+                  {item.status === "open" && (
+                    <div className="button-row">
+                      {item.type === "accept_follow_up" ? (
+                        <button className="success-button" disabled={pending} onClick={() => act(() => api.acceptFollowUp(runId, item.id))}>
+                          <Plus size={15} /> Accept follow-up
+                        </button>
+                      ) : (
+                        <>
+                          <button className="success-button" disabled={pending} onClick={() => act(() => api.decideInbox(runId, item.id, "approve"))}>
+                            <Check size={15} /> Approve
+                          </button>
+                          <button className="danger-button" disabled={pending} onClick={() => act(() => api.decideInbox(runId, item.id, "changes"))}>
+                            <X size={15} /> Changes
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </article>
+              ))}
+              {inboxItems.length === 0 && <p className="empty-hint">Inbox is empty.</p>}
+            </div>
+          </section>
+        )}
+
+        {view === "review" && (
+          <section className="view-panel" aria-label="Review gates">
+            <div className="panel-header"><div><span className="label">Review gates</span><h2>All task gates</h2></div></div>
+            <div className="gates-list">
+              {state.reviewGates.length === 0 && <p className="empty-hint">No review gates yet. Run a task to produce one.</p>}
+              {state.reviewGates.map((g) => {
+                const t = state.tasks.find((tk) => tk.id === g.taskId);
+                return (
+                  <article className="gate-card" key={g.id}>
+                    <div className="inbox-detail-top">
+                      <strong>{titleByTask.get(g.taskId) ?? g.taskId}</strong>
+                      <span className={`review-state ${g.status === "approved" ? "approved" : g.status === "changes_requested" ? "changes" : "waiting"}`}>{labelize(g.status)}</span>
+                    </div>
+                    <div className="review-summary">
+                      <div><span>Changed files</span><strong>{g.changedFiles.join(", ") || "(none)"}</strong></div>
+                      <div><span>Diff</span><strong>{g.diffSummary.join(" ")}</strong></div>
+                      <div><span>Tests</span><strong>{g.tests.map((tt) => `${tt.command}: ${tt.result}`).join(" · ")}</strong></div>
+                    </div>
+                    {g.status === "pending" && t && (
+                      <div className="button-row">
+                        <button className="success-button" disabled={pending} onClick={() => act(() => api.decideReview(runId, g.taskId, "approved"))}>
+                          <UserCheck size={15} /> Approve
+                        </button>
+                        <button className="danger-button" disabled={pending} onClick={() => act(() => api.decideReview(runId, g.taskId, "changes"))}>
+                          <AlertTriangle size={15} /> Request changes
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

@@ -1120,3 +1120,52 @@ button:disabled {
   color: var(--amber);
   white-space: nowrap;
 }
+
+/* ---- Left-rail badge + alternate views ---- */
+.rail-button { position: relative; }
+.rail-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--red);
+  color: #fff;
+  font-size: 9px;
+  line-height: 15px;
+  text-align: center;
+}
+.view-panel {
+  margin: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  overflow: auto;
+}
+.agents-detail,
+.inbox-detail-list,
+.gates-list {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  margin-top: 12px;
+}
+.agent-detail-card,
+.inbox-detail-card,
+.gate-card {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.agent-detail-head { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.agent-detail-head strong { display: block; }
+.agent-detail-head span { color: var(--muted); font-size: 12px; }
+.agent-detail-update { color: var(--quiet); font-size: 12px; margin-top: 6px; }
+.agent-run-list { list-style: none; padding: 0; margin: 8px 0 0; font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+.inbox-detail-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.inbox-detail-card.open { border-left: 2px solid var(--amber); }
+.inbox-detail-card p, .gate-card p { color: var(--muted); font-size: 13px; }

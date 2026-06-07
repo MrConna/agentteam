@@ -106,6 +106,22 @@ export function profileFor(provider: RealProvider): ProviderProfile {
   return PROVIDERS[provider];
 }
 
+/**
+ * Resolve the executable to spawn for a provider. An env override wins so the
+ * operator can point a provider at the real binary or a wrapper script without
+ * editing code, e.g.:
+ *   AGENTTEAM_CMD_CLAUDE=/Users/me/.local/bin/claude
+ *   AGENTTEAM_CMD_ANTIGRAVITY=agy
+ *   AGENTTEAM_CMD_PI_AGENT=pi
+ * This is the supported fix for shell aliases (e.g. `claude-official`), which a
+ * bare child_process spawn cannot resolve.
+ */
+export function resolveCommand(provider: RealProvider): string {
+  const envKey = `AGENTTEAM_CMD_${provider.toUpperCase().replace(/-/g, "_")}`;
+  const override = process.env[envKey]?.trim();
+  return override || PROVIDERS[provider].command;
+}
+
 /** Best provider+model for a role, e.g. routeForRole("coder") -> codex/gpt-5-codex. */
 export function routeForRole(role: string): { provider: RealProvider; model: string } {
   const provider = EXTENDED_ROLE_ROUTING[role] ?? "codex";
