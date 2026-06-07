@@ -49,9 +49,11 @@ export interface GeneratedPlan {
 
 export function generatePlan(goal: string): GeneratedPlan {
   const subject = subjectOf(goal);
+  // Per-plan tag keeps agent ids unique so multiple runs coexist in one DB.
+  const tag = randomUUID().slice(0, 6);
 
   const planner: PlanAgent = {
-    id: "agent-planner",
+    id: `agent-planner-${tag}`,
     name: "Planner",
     role: "planner",
     status: "done",
@@ -59,7 +61,7 @@ export function generatePlan(goal: string): GeneratedPlan {
     lastUpdate: "Plan ready for approval",
   };
   const coder: PlanAgent = {
-    id: "agent-coder",
+    id: `agent-coder-${tag}`,
     name: "Coder",
     role: "coder",
     status: "idle",
@@ -67,7 +69,7 @@ export function generatePlan(goal: string): GeneratedPlan {
     lastUpdate: "Waiting for plan approval",
   };
   const reviewer: PlanAgent = {
-    id: "agent-reviewer",
+    id: `agent-reviewer-${tag}`,
     name: "Reviewer",
     role: "reviewer",
     status: "idle",
@@ -75,7 +77,7 @@ export function generatePlan(goal: string): GeneratedPlan {
     lastUpdate: "Standing by",
   };
   const tester: PlanAgent = {
-    id: "agent-tester",
+    id: `agent-tester-${tag}`,
     name: "Tester",
     role: "tester",
     status: "idle",

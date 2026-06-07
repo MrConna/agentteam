@@ -11,6 +11,8 @@ export interface RealRunOptions {
   prompt?: string;
   worktree?: string;
   timeoutMs?: number;
+  /** Note recorded into run artifacts: which memory influenced this run. */
+  memoryNote?: string;
 }
 
 export interface CliCommand {

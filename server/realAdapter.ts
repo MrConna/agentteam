@@ -15,11 +15,14 @@ import {
   buildCliCommand,
   executeCliCommand,
   isRealProvider,
+  realAdapterEnabled,
   type RealAgentProvider,
   type RealRunOptions,
 } from "./agentCli.ts";
 import { defaultModelFor } from "./agentRegistry.ts";
 import { createRunResult, createTaskPacket } from "./runArtifacts.ts";
+import { collectChangedFiles, ensureWorktree, type DiffResult } from "./worktree.ts";
+import { runArtifactDir, writeRunArtifacts } from "./artifacts.ts";
 
 const J = (v: unknown) => JSON.stringify(v ?? []);
 
@@ -90,11 +93,74 @@ export async function runRealTask(
   });
   startTx();
 
-  const execution = await executeCliCommand(command, {
-    dryRun: options.dryRun,
-    timeoutMs: options.timeoutMs,
+  // Only create a real isolated worktree when we will actually execute.
+  const willExecute = realAdapterEnabled() && !options.dryRun;
+  let worktreeError: string | undefined;
+  if (willExecute) {
+    try {
+      ensureWorktree({ branch, worktree });
+    } catch (e) {
+      worktreeError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  const execution = worktreeError
+    ? {
+        status: "failed" as const,
+        stdout: "",
+        stderr: worktreeError,
+        reason: "worktree_error",
+        startedAt: iso(),
+        completedAt: iso(),
+      }
+    : await executeCliCommand(command, {
+        dryRun: options.dryRun,
+        timeoutMs: options.timeoutMs,
+      });
+
+  // Import the real diff from the worktree after a successful execution.
+  let diff: DiffResult | undefined;
+  if (execution.status === "success") {
+    try {
+      diff = collectChangedFiles(worktree);
+    } catch {
+      diff = undefined;
+    }
+  }
+
+  const result = createRunResult({
+    runId,
+    task,
+    provider,
+    command,
+    execution,
+    changedFiles: diff?.fileNames,
+    diffSummary: diff?.summaryLines,
   });
-  const result = createRunResult({ runId, task, provider, command, execution });
+
+  // Persist file-backed artifacts under .agentteam/runs/<drun-id>/.
+  let artifactDir = "";
+  try {
+    artifactDir = writeRunArtifacts({
+      delegatedRunId: drunId,
+      packet,
+      result,
+      plan: [
+        `Run ${provider}/${model} for "${task.title}"`,
+        `Write scope: ${task.fileScope.join(", ") || "unscoped"}`,
+        "Collect diff and tests, then hand to review gate.",
+      ],
+      heartbeat: {
+        status: result.status,
+        progress: result.status === "completed" ? 100 : 60,
+        currentStep: result.summary,
+        updatedAt: iso(),
+      },
+      memoryNote: options.memoryNote ?? "no matching high-confidence memory recorded for this run",
+    }).dir;
+  } catch {
+    artifactDir = runArtifactDir(drunId);
+  }
 
   const finishTx = db.transaction(() => {
     const eventStatus = result.status === "completed" ? "success" : result.status === "blocked" ? "warning" : "failed";
@@ -103,6 +169,22 @@ export async function runRealTask(
       command: command.display,
       status: eventStatus,
     });
+    if (diff && diff.fileNames.length) {
+      addEvent(runId, "file_changed", coder, "Imported diff from worktree", diff.summaryLines.join("; "), {
+        taskId,
+        files: diff.fileNames,
+        status: "success",
+      });
+    }
+
+    const diffSummary =
+      diff && diff.summaryLines.length
+        ? [`Provider: ${provider}; model: ${model}.`, "Imported real diff from worktree:", ...diff.summaryLines]
+        : [
+            result.summary,
+            `Provider: ${provider}; model: ${model}.`,
+            result.status === "completed" ? "Completed but no file changes detected." : "No diff imported.",
+          ];
 
     db.prepare(
       `INSERT INTO review_gates
@@ -119,11 +201,7 @@ export async function runRealTask(
       taskId,
       "pending",
       J(result.changedFiles),
-      J([
-        result.summary,
-        `Provider: ${provider}; model: ${model}.`,
-        result.status === "completed" ? "CLI completed; diff import is pending integration." : "No diff imported.",
-      ]),
+      J(diffSummary),
       J(result.validation),
       J(result.blockers.length ? result.blockers : ["Verify command output and changed files before approval."]),
       result.status === "completed"
@@ -181,7 +259,7 @@ export async function runRealTask(
       result.status === "completed" ? 100 : 60,
       result.summary,
       result.status === "completed" ? "Awaiting review gate" : "Resolve blocker and retry",
-      J([packet, result]),
+      J([{ artifactDir }, packet, result]),
       hhmm(),
       iso(),
       drunId,

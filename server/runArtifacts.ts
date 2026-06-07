@@ -79,10 +79,20 @@ export function createRunResult(input: {
   provider: RealAgentProvider;
   command: CliCommand;
   execution: CliExecutionResult;
+  /** Real changed files collected from the worktree after execution. */
+  changedFiles?: string[];
+  /** Optional extra diff summary lines (e.g. per-file +/- counts). */
+  diffSummary?: string[];
 }): RealRunResult {
   const blocked = input.execution.status === "blocked" || input.execution.status === "dry_run";
   const failed = input.execution.status === "failed";
   const blockers = blocked ? [input.execution.reason ?? "blocked"] : [];
+  const changedFiles = input.changedFiles ?? [];
+  const baseSummary = summarizeExecution(input.execution);
+  const summary =
+    input.execution.status === "success" && changedFiles.length
+      ? `${baseSummary} ${changedFiles.length} file(s) changed.`
+      : baseSummary;
   return {
     schema: "agentteam.realRunResult.v1",
     runId: input.runId,
@@ -93,16 +103,16 @@ export function createRunResult(input: {
     exitCode: input.execution.exitCode,
     startedAt: input.execution.startedAt,
     completedAt: input.execution.completedAt,
-    summary: summarizeExecution(input.execution),
+    summary,
     stdoutTail: input.execution.stdout,
     stderrTail: input.execution.stderr,
     blockers,
-    changedFiles: [],
+    changedFiles,
     validation: [
       {
         command: input.command.display,
         result: input.execution.status === "success" ? "passed" : "not_run",
-        summary: summarizeExecution(input.execution),
+        summary: baseSummary,
       },
     ],
   };

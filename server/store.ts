@@ -187,6 +187,7 @@ export function createRun(input: CreateRunInput): string {
     const ownerByRole = new Map<AgentRole, string>(
       plan.agents.map((a) => [a.role, a.id]),
     );
+    const plannerId = ownerByRole.get("planner") ?? plan.agents[0].id;
     const insTask = db.prepare(
       `INSERT INTO tasks
         (id, run_id, title, description, owner_agent_id, status, file_scope,
@@ -214,7 +215,7 @@ export function createRun(input: CreateRunInput): string {
     db.prepare(
       `INSERT INTO channel_messages (id, run_id, type, agent_id, body, timestamp)
        VALUES (?,?,?,?,?,?)`,
-    ).run(uid("msg"), runId, "plan_proposed", "agent-planner", plan.planSummary, hhmm());
+    ).run(uid("msg"), runId, "plan_proposed", plannerId, plan.planSummary, hhmm());
     db.prepare(
       `INSERT INTO inbox_items
         (id, run_id, type, title, summary, agent_id, priority, status, created_at)
@@ -225,7 +226,7 @@ export function createRun(input: CreateRunInput): string {
       "approve_plan",
       `Approve ${plan.tasks.length}-task plan`,
       plan.planSummary,
-      "agent-planner",
+      plannerId,
       "high",
       "open",
       ts,
@@ -248,7 +249,7 @@ export function createRun(input: CreateRunInput): string {
       id: uid("drun"),
       run: runId,
       task: plan.tasks[0].id,
-      agent: "agent-planner",
+      agent: plannerId,
       branch: "agent/claude-plan",
       wt: "../agentteam-claude-plan",
       ts: hhmm(),
@@ -401,9 +402,9 @@ export function approvePlan(runId: string): void {
     db.prepare(
       "UPDATE inbox_items SET status = 'approved', resolved_at = ? WHERE run_id = ? AND type = 'approve_plan'",
     ).run(iso(), runId);
-    setAgentStatus("agent-coder", "running", "Cleared to start ready tasks");
-    addMessage(runId, "plan_proposed", "agent-planner", "Plan approved. Coder is cleared to start ready tasks.");
-    addEvent(runId, "reasoning", "agent-planner", "Plan approved", "Human approved the generated plan.", { status: "success" });
+    setAgentStatus(ownerAgentId(runId, "coder"), "running", "Cleared to start ready tasks");
+    addMessage(runId, "plan_proposed", ownerAgentId(runId, "planner"), "Plan approved. Coder is cleared to start ready tasks.");
+    addEvent(runId, "reasoning", ownerAgentId(runId, "planner"), "Plan approved", "Human approved the generated plan.", { status: "success" });
     touchRun(runId);
   });
   tx();
@@ -419,8 +420,9 @@ export function decideInbox(runId: string, inboxId: string, decision: "approved"
       db.prepare("UPDATE runs SET plan_approved = 1, run_status = 'running' WHERE id = ?").run(runId);
     }
     const verb = decision === "approved" ? "approved" : decision === "answered" ? "answered" : "sent back";
-    addMessage(runId, "approval_requested", item.agent_id ?? "agent-planner", `${item.title} ${verb}.`, item.task_id ?? undefined);
-    addEvent(runId, "reasoning", item.agent_id ?? "agent-planner", "Inbox decision", `${item.type}: ${item.title} -> ${decision}.`, {
+    const inboxAgent = item.agent_id ?? ownerAgentId(runId, "planner");
+    addMessage(runId, "approval_requested", inboxAgent, `${item.title} ${verb}.`, item.task_id ?? undefined);
+    addEvent(runId, "reasoning", inboxAgent, "Inbox decision", `${item.type}: ${item.title} -> ${decision}.`, {
       taskId: item.task_id ?? undefined,
       status: decision === "rejected" ? "warning" : "success",
     });
@@ -440,8 +442,9 @@ export function moveTask(runId: string, taskId: string, status: Task["status"]):
         : task.lastUpdate;
   const tx = getDb().transaction(() => {
     setTaskStatus(runId, taskId, status, note);
-    addMessage(runId, status === "review" ? "review_completed" : "task_started", task.ownerAgentId || "agent-coder", `${task.title} moved to ${status}.`, taskId);
-    addEvent(runId, "reasoning", task.ownerAgentId || "agent-coder", "Task state", `${task.title}: -> ${status}.`, {
+    const taskAgent = task.ownerAgentId || ownerAgentId(runId, "coder");
+    addMessage(runId, status === "review" ? "review_completed" : "task_started", taskAgent, `${task.title} moved to ${status}.`, taskId);
+    addEvent(runId, "reasoning", taskAgent, "Task state", `${task.title}: -> ${status}.`, {
       taskId,
       status: status === "done" ? "success" : "running",
     });
@@ -460,12 +463,12 @@ export function decideReview(runId: string, taskId: string, decision: "approved"
     ).run(decision, iso(), runId, taskId);
     if (decision === "approved") {
       setTaskStatus(runId, taskId, "done", "Review gate approved; task is done.");
-      addMessage(runId, "ship_summary", "agent-reviewer", `${task.title} approved through review gate.`, taskId);
-      addEvent(runId, "reasoning", "agent-reviewer", "Review gate", "Operator approved diff, tests, and risk notes.", { taskId, status: "success" });
+      addMessage(runId, "ship_summary", ownerAgentId(runId, "reviewer"), `${task.title} approved through review gate.`, taskId);
+      addEvent(runId, "reasoning", ownerAgentId(runId, "reviewer"), "Review gate", "Operator approved diff, tests, and risk notes.", { taskId, status: "success" });
     } else {
       setTaskStatus(runId, taskId, "ready", "Changes requested; returned to ready queue.");
-      addMessage(runId, "review_completed", "agent-reviewer", `${task.title} returned for changes.`, taskId);
-      addEvent(runId, "warning", "agent-reviewer", "Review gate", "Operator requested changes before approval.", { taskId, status: "warning" });
+      addMessage(runId, "review_completed", ownerAgentId(runId, "reviewer"), `${task.title} returned for changes.`, taskId);
+      addEvent(runId, "warning", ownerAgentId(runId, "reviewer"), "Review gate", "Operator requested changes before approval.", { taskId, status: "warning" });
     }
     touchRun(runId);
   });
@@ -501,8 +504,8 @@ export function acceptFollowUp(runId: string, inboxId: string): void {
     if (item) {
       db.prepare("UPDATE inbox_items SET status = 'approved', resolved_at = ? WHERE id = ?").run(ts, inboxId);
     }
-    addMessage(runId, "follow_up_suggested", "agent-tester", `Follow-up accepted: ${title}.`, newTaskId);
-    addEvent(runId, "reasoning", "agent-tester", "Follow-up accepted", `Created follow-up task: ${title}.`, { taskId: newTaskId, status: "success" });
+    addMessage(runId, "follow_up_suggested", ownerAgentId(runId, "tester"), `Follow-up accepted: ${title}.`, newTaskId);
+    addEvent(runId, "reasoning", ownerAgentId(runId, "tester"), "Follow-up accepted", `Created follow-up task: ${title}.`, { taskId: newTaskId, status: "success" });
     touchRun(runId);
   });
   tx();
