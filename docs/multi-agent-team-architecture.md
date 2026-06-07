@@ -314,7 +314,7 @@ This is how the human sees delegated work:
 Claude planner/reviewer:
 
 ```bash
-claude -p \
+claude-official -p \
   --permission-mode bypassPermissions \
   --allowedTools Read,Write,Edit,MultiEdit,Bash \
   "<task packet>"

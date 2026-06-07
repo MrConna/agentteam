@@ -23,8 +23,8 @@ pi-agent and Codex are usable for this phase. pi-agent should stay mostly read-o
 
 | Task | Owner | Role | Branch | Worktree | Status |
 |---|---|---|---|---|---|
-| Add adapter tests and fixtures | Codex | coder/tester | `agent/codex-test-real-adapter` | `../agentteam-codex-test-real-adapter` | ready |
-| Implement worktree and artifact import helpers | Codex | coder | `agent/codex-impl-run-artifacts` | `../agentteam-codex-impl-run-artifacts` | ready |
+| Add adapter tests and fixtures | Codex | coder/tester | `agent/codex-test-real-adapter` | `../agentteam-codex-test-real-adapter` | done (on main: `server/_tests/run.ts`, `npm test`) |
+| Implement worktree and artifact import helpers | Codex | coder | `agent/codex-impl-run-artifacts` | `../agentteam-codex-impl-run-artifacts` | done (on main: `server/worktree.ts`, `server/artifacts.ts`, real diff into review gate) |
 | Scout CLI output parsing conventions | pi-agent | scout | `agent/pi-scout-cli-output` | `../agentteam-pi-scout-cli-output` | ready |
 | Draft operator runbook for real adapter dry runs | pi-agent | scribe | `agent/pi-scribe-real-adapter-runbook` | `../agentteam-pi-scribe-real-adapter-runbook` | ready |
 | Review real adapter safety and merge gates | Claude Code | reviewer | `agent/claude-review-real-adapter` | `../agentteam-claude-review-real-adapter` | blocked: original Claude Code TLS/proxy issue |
@@ -135,7 +135,7 @@ Required outputs:
 
 - Compare output shapes for:
   - `codex exec`
-  - `claude -p`
+  - `claude-official -p`
   - `pi -p`
 - Recommend the minimum structured prompt convention for each provider.
 - Identify which fields can be parsed from stdout and which should be written as artifacts.

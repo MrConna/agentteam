@@ -142,7 +142,7 @@ Implemented:
 
 - Local SQLite store at `.agentteam/state.db` with numbered migrations (`server/db.ts`, `migrations/0001_init.sql`).
 - Deterministic planner turns a natural-language goal into a 6-task board plus a fixed 4-agent team (`server/planner.ts`).
-- Agent adapter drives a task ready -> running -> review, writing a delegated run, activity events, channel messages, a review gate, and inbox items (`server/adapter.ts`). It ships as a simulated executor; a real `codex exec` / `claude -p` adapter implements the same contract.
+- Agent adapter drives a task ready -> running -> review, writing a delegated run, activity events, channel messages, a review gate, and inbox items (`server/adapter.ts`). It ships as a simulated executor; a real `codex exec` / `claude-official -p` adapter implements the same contract.
 - Express API (`server/index.ts`) exposes state + all mutations; React app reads/writes through `src/api.ts` and persists across reload.
 - Create-run-from-goal screen; global Run and per-task Run actions; approval gates for plan, inbox, and review.
 
@@ -255,4 +255,3 @@ Mitigation:
 ## Immediate Next Step
 
 Build Phase 2 clickable prototype using the Operator Console direction.
-

@@ -59,7 +59,7 @@ Dry runs use the same import path and are also treated as blocked because no rep
 
 The initial command forms are:
 
-- Claude: `claude [--model value] -p <prompt>` as argv `["--model", value, "-p", prompt]` when a model is supplied.
+- Claude: `claude-official [--model value] -p <prompt>` as argv `["--model", value, "-p", prompt]` when a model is supplied.
 - Codex: `codex exec [--model value] <prompt>`
 - Pi Agent: `pi -p --tools read,grep,find,ls,bash,edit,write --session-dir .agentteam/sessions/<runId> [--model value] <prompt>`
 

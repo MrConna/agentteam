@@ -39,6 +39,14 @@ Record the memory entries used in `progress.md`.
 
 Do not edit outside this scope without approval.
 
+## Development Constraints
+
+- Test-first requirement:
+- Expected change size:
+- If expected change size is over 100 lines, stop after `plan.md` and wait for review before edits.
+- Exact files allowed:
+- Shared files requiring explicit approval:
+
 ## Required Artifacts
 
 Create or return:
@@ -80,6 +88,8 @@ Commit message:
 <role>: <outcome>
 ```
 
+If this message is unclear, stop and clarify the work before handoff.
+
 ## Handoff Requirements
 
 Final response must include:
@@ -90,6 +100,7 @@ Final response must include:
 - validation result
 - memory added or not added
 - context checkpoint needed or not
+- proposed commit message
 - blockers/follow-ups
 - recommended next agent
 ```

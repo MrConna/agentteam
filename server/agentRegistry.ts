@@ -7,7 +7,7 @@ import type { AgentRole } from "../src/types/domain.ts";
  * CLI/TUI that is strongest with its own model, so we route work to the best
  * tool per role and let each one use its top model:
  *
- *   claude code   -> Opus        (judgment: planning, review)
+ *   claude code   -> Opus        (judgment: planning, review; CLI binary is `claude-official`)
  *   codex         -> GPT-5       (repo-grounded implementation, tests)
  *   antigravity   -> Gemini      (fast scouting; CLI binary is `gemini`)
  *   pi-agent      -> DeepSeek / Kimi / local (cheap scout + scribe)
@@ -39,7 +39,7 @@ export const PROVIDERS: Record<RealProvider, ProviderProfile> = {
   claude: {
     id: "claude",
     label: "Claude Code",
-    command: "claude",
+    command: "claude-official",
     defaultModel: "opus",
     models: ["opus", "sonnet", "haiku"],
     bestFor: "Planning and review judgment",

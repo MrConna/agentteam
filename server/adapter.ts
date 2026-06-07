@@ -23,7 +23,7 @@ const J = (v: unknown) => JSON.stringify(v ?? []);
  * messages + a review gate + inbox decisions) that persists in SQLite.
  *
  * This is the "mocked execution" path the MVP ships with. A real adapter would
- * implement the same contract by shelling out to `codex exec` / `claude -p`
+ * implement the same contract by shelling out to `codex exec` / `claude-official -p`
  * inside an isolated worktree and importing the resulting diff and test output.
  */
 export async function runTask(

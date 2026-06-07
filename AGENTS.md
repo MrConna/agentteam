@@ -19,6 +19,13 @@ Do not store secrets, raw logs, ordinary progress updates, or low-confidence gue
 
 For multi-agent work, follow [docs/agent-development-standard.md](docs/agent-development-standard.md).
 
+Core development principles:
+
+- Test first when behavior changes: ask the agent to write or update the validation before implementation. Passing tests are the evidence that the agent understood the requirement, not polished-looking code.
+- Plan before large edits: any change expected to exceed 100 lines must produce a plan first, including expected files and validation commands, and wait for review before code edits.
+- File scope is mandatory: every task must name the exact files or directories the agent may edit. Do not let an agent choose its own write scope.
+- End with a commit message: every session handoff must include the commit message the agent would use. If the agent cannot state it clearly, it has not understood its own change.
+
 Every delegated agent must keep its work observable:
 
 - Before starting: retrieve relevant memory, read the task contract, confirm read/write scope.

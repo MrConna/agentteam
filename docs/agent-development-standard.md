@@ -15,6 +15,54 @@ Every delegated agent must leave behind compact, structured artifacts that anoth
 
 Memory sync is part of the work, not an optional cleanup step. Agents must keep durable learnings current so later agents do not spend premium tokens rediscovering the same context.
 
+## Core Development Principles
+
+These rules apply to every write-capable agent session.
+
+### Test First
+
+When behavior changes, the agent should write or update the validation before implementing the behavior. The validation can be a unit test, integration test, executable script, or explicit manual check when no test harness exists.
+
+Passing validation is the proof that the agent understood the requirement. A clean-looking implementation without a test or validation result is incomplete.
+
+### Plan Before Large Edits
+
+Any task expected to change more than 100 lines must stop after planning and wait for review before editing code.
+
+The plan must include:
+
+- requirement understanding
+- expected files to edit
+- expected validation commands
+- risk notes
+- estimated size of the change
+
+If the agent discovers mid-task that the change will exceed 100 lines, it must pause, update `plan.md`, and ask for approval before continuing.
+
+### Strict File Scope
+
+Every delegated task must define an explicit write scope before work starts.
+
+Good:
+
+```text
+Only edit server/adapter.ts and server/adapter.validation.ts.
+```
+
+Bad:
+
+```text
+Fix the adapter however you think is best.
+```
+
+Agents must not add files outside the scope, broaden directories, or modify shared files such as `package.json`, migrations, schemas, or global styles without an explicit scope update.
+
+### Commit Message As Understanding Check
+
+Every session handoff must include the commit message the agent would use for its work.
+
+If the agent cannot write a concise commit message that names the actual outcome, the work is not ready for handoff. This applies even when the agent is not allowed to commit.
+
 ## Required Artifacts
 
 Each delegated run must have a run directory:
@@ -242,6 +290,7 @@ Best default tools:
 
 Must update:
 
+- tests or executable validation before implementation when behavior changes
 - implementation plan before edits
 - files touched
 - commands run
@@ -252,6 +301,8 @@ Must update:
 Must not:
 
 - edit outside assigned write scope
+- start a >100 line change before plan review
+- hand off without a proposed commit message
 - silently skip validation
 - overwrite another agent's work
 
@@ -419,6 +470,8 @@ Examples:
 - `tester: add auth smoke coverage`
 - `reviewer: record oauth review verdict`
 - `scribe: summarize run context`
+
+Every handoff must include the proposed commit message, even when the agent is not permitted to commit. Treat unclear commit messages as a sign that the agent's understanding is still fuzzy.
 
 ### Staging Rule
 

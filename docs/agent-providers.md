@@ -10,7 +10,7 @@ Source of truth: `server/agentRegistry.ts`.
 
 | Provider | CLI binary | Best model | Also selectable | Best for |
 |---|---|---|---|---|
-| Claude Code | `claude` | `opus` | sonnet, haiku | Planning and review judgment |
+| Claude Code | `claude-official` | `opus` | sonnet, haiku | Planning and review judgment |
 | Codex | `codex` | `gpt-5-codex` | gpt-5, o4-mini | Repo-grounded implementation and tests |
 | Antigravity (Gemini) | `gemini` | `gemini-2.5-pro` | gemini-2.5-flash | Fast scouting and exploration |
 | pi-agent | `pi` | `deepseek/deepseek-v4-flash` | moonshotai-cn/kimi-k2.6, local/llama | Cheap scout, scribe, local models |
@@ -38,7 +38,7 @@ Mirrors `docs/multi-agent-team-architecture.md`:
 ## Command shapes
 
 ```bash
-claude --model opus -p "<task packet>"
+claude-official --model opus -p "<task packet>"
 codex exec --model gpt-5-codex "<task packet>"
 gemini -m gemini-2.5-pro -p "<task packet>"
 pi -p --tools read,grep,find,ls,bash,edit,write --session-dir .agentteam/sessions/<run> --model deepseek/deepseek-v4-flash "<task packet>"
