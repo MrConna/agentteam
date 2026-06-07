@@ -73,6 +73,14 @@ The user should always know:
 
 ## Product Principles
 
+### 0. AI Native Means Rebuilding the Workflow
+
+AI Native is not about stuffing AI into the old workflow; it is about using AI to redesign the entire workflow.
+
+> AI Native 不是把 AI 塞进旧流程，而是用 AI 重构整个流程。
+
+Do not bolt agents onto a human-shaped process and call it done. Start from what becomes possible when capable agents are first-class participants, then redesign task flow, ownership, review, and shipping around that. Every feature should be judged against this: does it digitize an old habit, or does it reconstruct the workflow for an AI-native team?
+
 ### 1. Agents Are Teammates, Not Sidebars
 
 Agents should have names, roles, task ownership, progress updates, blockers, and review responsibilities.
