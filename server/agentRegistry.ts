@@ -9,7 +9,7 @@ import type { AgentRole } from "../src/types/domain.ts";
  *
  *   claude code   -> Opus        (judgment: planning, review; CLI binary is `claude-official`)
  *   codex         -> GPT-5       (repo-grounded implementation, tests)
- *   antigravity   -> Gemini      (fast scouting; CLI binary is `gemini`)
+ *   antigravity   -> Gemini      (fast scouting; CLI binary is `agy`)
  *   pi-agent      -> DeepSeek / Kimi / local (cheap scout + scribe)
  *
  * Models here are sensible defaults; every field is overridable per run via the
@@ -55,7 +55,7 @@ export const PROVIDERS: Record<RealProvider, ProviderProfile> = {
   antigravity: {
     id: "antigravity",
     label: "Antigravity (Gemini)",
-    command: "gemini",
+    command: "agy",
     defaultModel: "gemini-2.5-pro",
     models: ["gemini-2.5-pro", "gemini-2.5-flash"],
     bestFor: "Fast scouting and exploration",

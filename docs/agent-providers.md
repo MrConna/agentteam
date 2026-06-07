@@ -12,13 +12,13 @@ Source of truth: `server/agentRegistry.ts`.
 |---|---|---|---|---|
 | Claude Code | `claude-official` | `opus` | sonnet, haiku | Planning and review judgment |
 | Codex | `codex` | `gpt-5-codex` | gpt-5, o4-mini | Repo-grounded implementation and tests |
-| Antigravity (Gemini) | `gemini` | `gemini-2.5-pro` | gemini-2.5-flash | Fast scouting and exploration |
+| Antigravity (Gemini) | `agy` | `gemini-2.5-pro` | gemini-2.5-flash | Fast scouting and exploration |
 | pi-agent | `pi` | `deepseek/deepseek-v4-flash` | moonshotai-cn/kimi-k2.6, local/llama | Cheap scout, scribe, local models |
 | Simulated | — | — | — | Default; no CLI, deterministic evidence trail |
 
 Notes:
 
-- Antigravity is driven through the installed `gemini` CLI in non-interactive mode.
+- Antigravity/Gemini is driven through the installed `agy` CLI in non-interactive mode.
 - pi-agent requires provider-qualified model ids (`provider/id`); short aliases fail.
 - Models are defaults; every run can override the model via the API or UI.
 
@@ -40,7 +40,7 @@ Mirrors `docs/multi-agent-team-architecture.md`:
 ```bash
 claude-official --model opus -p "<task packet>"
 codex exec --model gpt-5-codex "<task packet>"
-gemini -m gemini-2.5-pro -p "<task packet>"
+agy -m gemini-2.5-pro -p "<task packet>"
 pi -p --tools read,grep,find,ls,bash,edit,write --session-dir .agentteam/sessions/<run> --model deepseek/deepseek-v4-flash "<task packet>"
 ```
 

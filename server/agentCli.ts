@@ -82,7 +82,7 @@ export function buildCliCommand(input: {
     return toCommand(input.provider, PROVIDERS.codex.command, args, input.worktree);
   }
   if (input.provider === "antigravity") {
-    // Antigravity is driven through the `gemini` CLI in non-interactive mode.
+    // Antigravity/Gemini is driven through the `agy` CLI in non-interactive mode.
     const args = ["-p", prompt];
     if (input.model) args.unshift("-m", input.model);
     return toCommand(input.provider, PROVIDERS.antigravity.command, args, input.worktree);

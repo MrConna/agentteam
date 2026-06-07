@@ -19,6 +19,7 @@ process.env.AGENTTEAM_REAL_ADAPTER_ENABLED = "0";
 const { createRun, approvePlan, getRunState } = await import("../store.ts");
 const { runTask } = await import("../adapter.ts");
 const { runRealTask } = await import("../realAdapter.ts");
+const { buildCliCommand } = await import("../agentCli.ts");
 const { collectChangedFiles } = await import("../worktree.ts");
 
 let passed = 0;
@@ -108,6 +109,26 @@ await check("dryRun records dry_run/blocked without executing", async () => {
   assert.ok(dr, "antigravity delegated run recorded");
   assert.equal(dr!.status, "blocked");
   assert.equal(dr!.model, "gemini-2.5-pro");
+});
+
+// --- antigravity command shape --------------------------------------------
+await check("antigravity provider uses agy command", async () => {
+  const runId = createRun({ goal: "Validate agy command", projectName: "T" });
+  approvePlan(runId);
+  const tid = readyTaskIds(runId)[0];
+  const task = getRunState(runId)!.tasks.find((t) => t.id === tid)!;
+  const command = buildCliCommand({
+    provider: "antigravity",
+    task,
+    runId,
+    worktree: "../agentteam-antigravity-validation",
+    prompt: "noop",
+    model: "gemini-2.5-pro",
+  });
+
+  assert.equal(command.command, "agy");
+  assert.equal(command.args[0], "-m");
+  assert.match(command.display, /^agy -m gemini-2\.5-pro -p\b/);
 });
 
 // --- bad provider is rejected ---------------------------------------------
