@@ -1253,3 +1253,8 @@ button:disabled {
   border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 8px; font: inherit;
 }
 .chat-input textarea:focus { outline: none; border-color: var(--blue); }
+.chat-running {
+  padding: 3px 10px; font-size: 11px; color: var(--quiet);
+  background: var(--panel-2); border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, monospace;
+}

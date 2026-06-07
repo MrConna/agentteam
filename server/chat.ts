@@ -24,9 +24,12 @@ export interface ChatMessage {
 
 type ChatEvent =
   | { type: "chunk"; text: string }
+  | { type: "running"; command: string }
   | { type: "done"; exitCode: number | null }
   | { type: "error"; message: string }
   | { type: "status"; busy: boolean };
+
+const CHAT_TIMEOUT_MS = Number(process.env.AGENTTEAM_CHAT_TIMEOUT_MS ?? 180_000);
 
 interface ChatSession {
   id: string;
@@ -86,14 +89,42 @@ export function sendMessage(id: string, text: string): { ok: boolean; reason?: s
   emit(s, { type: "status", busy: true });
 
   const command = resolveCommand(s.provider);
+  const display = `${command} ${args.join(" ")}`.slice(0, 200);
   let assistant = "";
   let stderr = "";
+  let settled = false;
 
   const child = spawn(command, args, {
     cwd: PROJECT_ROOT,
     env: process.env,
     shell: false,
   });
+  emit(s, { type: "running", command: display });
+
+  const finish = (text: string, code: number | null, isError: boolean) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(timer);
+    s.messages.push({ role: isError ? "system" : "assistant", text, ts: now() });
+    s.status = "idle";
+    emit(s, isError ? { type: "error", message: text } : { type: "done", exitCode: code });
+    emit(s, { type: "status", busy: false });
+  };
+
+  const timer = setTimeout(() => {
+    try {
+      child.kill("SIGTERM");
+    } catch {
+      /* ignore */
+    }
+    const secs = Math.round(CHAT_TIMEOUT_MS / 1000);
+    finish(
+      `[timed out after ${secs}s] No response from ${command}. The CLI may need login/proxy, or try a faster model. ` +
+        (stderr.trim() ? `stderr: ${stderr.trim().slice(-400)}` : ""),
+      null,
+      true,
+    );
+  }, CHAT_TIMEOUT_MS);
 
   child.stdout.on("data", (d) => {
     const t = String(d);
@@ -104,21 +135,17 @@ export function sendMessage(id: string, text: string): { ok: boolean; reason?: s
     stderr += String(d);
   });
   child.on("error", (err) => {
-    s.status = "idle";
-    const msg = `Failed to launch ${command}: ${err.message}. Set AGENTTEAM_CMD_${s.provider
-      .toUpperCase()
-      .replace(/-/g, "_")} to a real executable.`;
-    s.messages.push({ role: "system", text: msg, ts: now() });
-    emit(s, { type: "error", message: msg });
-    emit(s, { type: "status", busy: false });
+    finish(
+      `Failed to launch ${command}: ${err.message}. Set AGENTTEAM_CMD_${s.provider
+        .toUpperCase()
+        .replace(/-/g, "_")} to a real executable.`,
+      null,
+      true,
+    );
   });
   child.on("close", (code) => {
-    if (s.status !== "thinking") return; // error already handled
-    const finalText = assistant.trim() || (stderr.trim() ? `[stderr] ${stderr.trim()}` : "[no output]");
-    s.messages.push({ role: "assistant", text: finalText, ts: now() });
-    s.status = "idle";
-    emit(s, { type: "done", exitCode: code });
-    emit(s, { type: "status", busy: false });
+    const text = assistant.trim() || (stderr.trim() ? `[stderr] ${stderr.trim()}` : "[no output]");
+    finish(text, code, false);
   });
 
   return { ok: true };

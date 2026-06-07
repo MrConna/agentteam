@@ -94,9 +94,20 @@ function ChatTile({ session, onClose }: { session: SessionMeta; onClose: () => v
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [runningCmd, setRunningCmd] = useState("");
+  const [elapsed, setElapsed] = useState(0);
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<string>("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Elapsed timer while the agent is working, so a slow (10-15s) reply looks
+  // alive instead of stuck.
+  useEffect(() => {
+    if (!busy) return;
+    setElapsed(0);
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, [busy]);
 
   useEffect(() => {
     const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -111,7 +122,11 @@ function ChatTile({ session, onClose }: { session: SessionMeta; onClose: () => v
         if (e.busy) {
           streamRef.current = "";
           setMessages((cur) => [...cur, { role: "assistant", text: "" }]);
+        } else {
+          setRunningCmd("");
         }
+      } else if (e.type === "running") {
+        setRunningCmd(e.command);
       } else if (e.type === "chunk") {
         streamRef.current += e.text;
         setMessages((cur) => {
@@ -125,8 +140,15 @@ function ChatTile({ session, onClose }: { session: SessionMeta; onClose: () => v
           return next;
         });
       } else if (e.type === "error") {
-        setMessages((cur) => [...cur, { role: "system", text: `[error] ${e.message}` }]);
+        setMessages((cur) => {
+          // drop the trailing empty assistant placeholder, then add the error
+          const trimmed = cur.length && cur[cur.length - 1].role === "assistant" && !cur[cur.length - 1].text
+            ? cur.slice(0, -1)
+            : cur;
+          return [...trimmed, { role: "system", text: e.message }];
+        });
         setBusy(false);
+        setRunningCmd("");
       }
     };
     return () => ws.close();
@@ -150,11 +172,12 @@ function ChatTile({ session, onClose }: { session: SessionMeta; onClose: () => v
       <div className="chat-tile-head">
         <span className={`provider-chip provider-${session.provider}`}>{session.label}</span>
         <code className="chat-model">{session.model}</code>
-        {busy && <span className="chat-thinking">thinking…</span>}
+        {busy && <span className="chat-thinking">running {elapsed}s…</span>}
         <button className="icon-button" title="Close session" onClick={onClose}>
           <X size={14} />
         </button>
       </div>
+      {busy && runningCmd && <div className="chat-running" title={runningCmd}>$ {runningCmd}</div>}
       <div className="chat-transcript" ref={scrollRef}>
         {messages.length === 0 && <p className="empty-hint">Say hello to {session.label}.</p>}
         {messages.map((m, i) => (
