@@ -6,3 +6,4 @@ dist/
 .gstack/
 *.tsbuildinfo
 .agentteam/
+tools/ai-radar/.env
