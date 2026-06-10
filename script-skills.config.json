@@ -1,0 +1,59 @@
+{
+  "$schema": "./script-skills.schema.json",
+  "skills": [
+    {
+      "id": "test",
+      "slash": "/test",
+      "label": "Test",
+      "description": "Analyze current changes and run the standard validation command.",
+      "role": "tester",
+      "mode": "hybrid",
+      "output": "review_gate",
+      "budgetTier": "standard",
+      "maxMinutes": 15,
+      "commands": [
+        { "id": "status", "label": "Inspect git status", "argv": ["git", "status", "--short"] },
+        { "id": "changed", "label": "List changed files", "argv": ["git", "diff", "--name-only"] },
+        { "id": "diff-check", "label": "Check diff whitespace", "argv": ["git", "diff", "--check"] },
+        { "id": "test", "label": "Run test suite", "argv": ["npm", "test"] }
+      ],
+      "promptTemplate": "Run /test for run {runId}. Analyze changed files, identify missing tests, run validation, and summarize failures or follow-ups."
+    },
+    {
+      "id": "review-diff",
+      "slash": "/review-diff",
+      "label": "Review Diff",
+      "description": "Perform a read-only diff safety check.",
+      "role": "reviewer",
+      "mode": "local",
+      "output": "review_gate",
+      "budgetTier": "cheap",
+      "maxMinutes": 8,
+      "commands": [
+        { "id": "status", "label": "Inspect git status", "argv": ["git", "status", "--short"] },
+        { "id": "stat", "label": "Summarize diff stat", "argv": ["git", "diff", "--stat"] },
+        { "id": "changed", "label": "List changed files", "argv": ["git", "diff", "--name-only"] },
+        { "id": "diff-check", "label": "Check diff whitespace", "argv": ["git", "diff", "--check"] }
+      ],
+      "promptTemplate": "Run /review-diff for run {runId}. Check changed files, scope, generated artifacts, risky patterns, and validation gaps."
+    },
+    {
+      "id": "changelog",
+      "slash": "/changelog",
+      "label": "Changelog",
+      "description": "Generate a changelog draft from current git changes.",
+      "role": "scribe",
+      "mode": "local",
+      "output": "changelog",
+      "budgetTier": "cheap",
+      "maxMinutes": 5,
+      "commands": [
+        { "id": "status", "label": "Inspect git status", "argv": ["git", "status", "--short"] },
+        { "id": "stat", "label": "Summarize diff stat", "argv": ["git", "diff", "--stat"] },
+        { "id": "changed", "label": "List changed files", "argv": ["git", "diff", "--name-only"] },
+        { "id": "recent", "label": "Inspect recent commits", "argv": ["git", "log", "--oneline", "-5"] }
+      ],
+      "promptTemplate": "Run /changelog for run {runId}. Convert current changes into a concise changelog draft grouped by feature, fix, test, and docs."
+    }
+  ]
+}

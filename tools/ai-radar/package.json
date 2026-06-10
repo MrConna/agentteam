@@ -1,0 +1,26 @@
+{
+  "name": "ai-inspiration-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight AI inspiration radar that fetches public Twitter/X updates via Nitter RSS.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "fetch": "tsx src/index.ts",
+    "radar": "tsx src/index.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
