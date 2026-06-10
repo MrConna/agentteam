@@ -28,6 +28,7 @@ const { runArtifactDir, writeRunArtifacts } = await import("../artifacts.ts");
 const { PROJECT_ROOT, collectChangedFiles, ensureWorktree } = await import("../worktree.ts");
 const { listScriptSkills, parseSlashCommand, runScriptSkill } = await import("../scriptSkills.ts");
 const { recallLessons, recordRetro } = await import("../retro.ts");
+const { initVectorMemory } = await import("../vectorMemory.ts");
 
 let passed = 0;
 function check(name: string, fn: () => void | Promise<void>) {
@@ -180,6 +181,18 @@ await check("writeRunArtifacts writes the delegated run artifact set", async () 
   assert.equal(parsed.schema, "agentteam.realRunResult.v1");
   assert.deepEqual(parsed.changedFiles, ["server/example.ts"]);
   rmSync(runArtifactDir(delegatedRunId), { recursive: true, force: true });
+});
+
+// --- vector memory ----------------------------------------------------------
+await check("initVectorMemory creates sqlite-vec embedding table", async () => {
+  const { getDb } = await import("../db.ts");
+  const db = getDb();
+  initVectorMemory(db);
+  const row = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'learnings_embeddings'")
+    .get() as { name: string } | undefined;
+  assert.equal(row?.name, "learnings_embeddings");
+  assert.match((db.prepare("SELECT vec_version() AS version").get() as { version: string }).version, /^v/);
 });
 
 // --- simulated default path still works -----------------------------------
@@ -362,13 +375,13 @@ await check("buildCliCommand without lessons leaves the base prompt unchanged", 
   assert.ok(command.args.includes("BASE_PROMPT"), "base prompt passed through verbatim");
 });
 
-await check("recallLessons is a no-op when memory is disabled", () => {
+await check("recallLessons is a no-op when memory is disabled", async () => {
   const runId = createRun({ goal: "Validate recall guard", projectName: "T" });
   approvePlan(runId);
   const tid = readyTaskIds(runId)[0];
   const task = getRunState(runId)!.tasks.find((t) => t.id === tid)!;
   // AGENTTEAM_MEMORY_DISABLED=1 is set in this test harness.
-  assert.equal(recallLessons({ role: "coder", task }), "");
+  assert.equal(await recallLessons({ role: "coder", task }), "");
 });
 
 // --- self-evolution: retro side -------------------------------------------

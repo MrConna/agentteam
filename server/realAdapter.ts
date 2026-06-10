@@ -24,6 +24,7 @@ import { createRunResult, createTaskPacket } from "./runArtifacts.ts";
 import { collectChangedFiles, ensureWorktree, type DiffResult } from "./worktree.ts";
 import { runArtifactDir, writeRunArtifacts } from "./artifacts.ts";
 import { recallLessons, recordRetro } from "./retro.ts";
+import { addEmbedding } from "./vectorMemory.ts";
 
 const J = (v: unknown) => JSON.stringify(v ?? []);
 
@@ -58,7 +59,7 @@ export async function runRealTask(
   let lessons = "";
   if (willExecute) {
     try {
-      lessons = recallLessons({ role: "coder", task });
+      lessons = await recallLessons({ role: "coder", task });
     } catch {
       lessons = "";
     }
@@ -297,7 +298,7 @@ export async function runRealTask(
   // (status/blockers). Best-effort: never throws, never blocks the handoff.
   if (willExecute) {
     try {
-      recordRetro({
+      const retroWrite = recordRetro({
         role: "coder",
         task,
         provider,
@@ -308,6 +309,12 @@ export async function runRealTask(
         wentWrong: result.retro?.wentWrong,
         nextTime: result.retro?.nextTime,
       });
+      if (retroWrite.ok && retroWrite.learningId && retroWrite.pattern) {
+        const embedded = await addEmbedding(retroWrite.learningId, retroWrite.pattern);
+        if (!embedded.ok && process.env.AGENTTEAM_VECTOR_MEMORY_DEBUG === "1") {
+          console.error(`[realAdapter] embedding skipped: ${embedded.reason ?? "unknown"}`);
+        }
+      }
     } catch {
       /* retro is best-effort */
     }

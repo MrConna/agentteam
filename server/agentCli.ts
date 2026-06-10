@@ -64,7 +64,8 @@ export function buildCliCommand(input: {
   lessons?: string;
 }): CliCommand {
   const base = input.prompt?.trim() || renderPrompt(input.provider, input.task, input.runId);
-  const prompt = input.lessons?.trim() ? `${input.lessons.trim()}\n\n${base}` : base;
+  const lessons = typeof input.lessons === "string" ? input.lessons.trim() : "";
+  const prompt = lessons ? `${lessons}\n\n${base}` : base;
   const model = input.model ?? "";
   const args = buildArgs({
     provider: input.provider,

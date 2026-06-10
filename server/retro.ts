@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PROJECT_ROOT } from "./worktree.ts";
+import { searchSimilar } from "./vectorMemory.ts";
 import type { Task } from "../src/types/domain.ts";
 
 /**
@@ -28,6 +30,7 @@ interface Learning {
   tags?: string[];
   context?: string;
   reference_count?: number;
+  stale?: boolean;
 }
 
 export interface RecallInput {
@@ -92,30 +95,77 @@ function runMemory(args: string[]): { ok: boolean; stdout: string; stderr: strin
   }
 }
 
+function keywordRecall(query: string): Learning[] {
+  const res = runMemory(["apply", "--query", query, "--json"]);
+  if (!res.ok || !res.stdout) return [];
+  try {
+    const parsed = JSON.parse(res.stdout);
+    return Array.isArray(parsed) ? (parsed as Learning[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadLearningsById(): Map<string, Learning> {
+  try {
+    const raw = readFileSync(join(PROJECT_ROOT, "memory", "learnings.jsonl"), "utf8");
+    const records = raw
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as Learning)
+      .filter((learning) => learning.id && learning.confidence >= 7 && !learning.stale);
+    return new Map(records.map((learning) => [learning.id, learning]));
+  } catch {
+    return new Map();
+  }
+}
+
+async function vectorRecall(
+  query: string,
+  limit: number,
+  recordsById: Map<string, Learning>,
+): Promise<Learning[]> {
+  if (recordsById.size === 0) return [];
+  const hits = await searchSimilar(query, limit);
+  const records: Learning[] = [];
+  for (const hit of hits) {
+    const record = recordsById.get(hit.learningId);
+    if (record) records.push(record);
+  }
+  return records;
+}
+
 /**
  * 召回同类任务的过往教训，返回可直接拼进 prompt 的 Markdown 段；无结果返回空串。
- * 优先 `retro` 标签的高置信度教训，没有再用全部高置信度记录兜底。
+ * 混合搜索策略：先用 sqlite-vec 找语义最相似的 top N，再按 confidence 排序；
+ * 若向量不可用 / 命中不足，再追加既有关键词 apply 结果作为兜底。
  */
-export function recallLessons(input: RecallInput): string {
+export async function recallLessons(input: RecallInput): Promise<string> {
   if (memoryDisabled()) return "";
   const limit = input.limit ?? 3;
   const query = [input.role, ...keywordsFor(input.task)].join(" ").trim();
   if (!query) return "";
 
-  const res = runMemory(["apply", "--query", query, "--json"]);
-  if (!res.ok || !res.stdout) return "";
+  const keywordRecords = keywordRecall(query);
+  const recordsById = loadLearningsById();
+  const vectorRecords = (await vectorRecall(query, limit, recordsById)).sort(
+    (a, b) => b.confidence - a.confidence,
+  );
 
-  let records: Learning[] = [];
-  try {
-    const parsed = JSON.parse(res.stdout);
-    if (Array.isArray(parsed)) records = parsed as Learning[];
-  } catch {
-    return "";
+  const merged: Learning[] = [];
+  const seen = new Set<string>();
+  for (const record of [...vectorRecords, ...keywordRecords]) {
+    if (!record?.id || seen.has(record.id)) continue;
+    if (record.stale) continue;
+    seen.add(record.id);
+    merged.push(record);
+    if (merged.length >= limit) break;
   }
-  if (records.length === 0) return "";
+  if (merged.length === 0) return "";
 
-  const retroFirst = records.filter((r) => (r.tags ?? []).includes("retro"));
-  const chosen = (retroFirst.length ? retroFirst : records).slice(0, limit);
+  const retroFirst = merged.filter((r) => (r.tags ?? []).includes("retro"));
+  const chosen = (retroFirst.length ? retroFirst : merged).slice(0, limit);
   if (chosen.length === 0) return "";
 
   const lines = chosen.map((r) => {
@@ -129,7 +179,7 @@ export function recallLessons(input: RecallInput): string {
  * 把本次任务的复盘沉淀回 memory。best-effort：成功与否都不抛错。
  * 教训内容优先用 agent 自报的 nextTime；缺省则按 status/blockers 机械生成。
  */
-export function recordRetro(input: RetroInput): { ok: boolean; pattern: string } {
+export function recordRetro(input: RetroInput): { ok: boolean; pattern: string; learningId?: string } {
   if (memoryDisabled()) return { ok: false, pattern: "" };
   const tasktype = taskType(input.task);
   const failed = input.status !== "completed";
@@ -167,7 +217,8 @@ export function recordRetro(input: RetroInput): { ok: boolean; pattern: string }
   if (!res.ok) {
     console.error(`[retro] recordRetro failed: ${res.stderr || "unknown"}`);
   }
-  return { ok: res.ok, pattern };
+  const learningId = res.stdout.match(/\bid=([A-Za-z0-9_-]+)/)?.[1];
+  return { ok: res.ok, pattern, learningId };
 }
 
 export { keywordsFor as _keywordsFor, taskType as _taskType };
