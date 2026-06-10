@@ -41,6 +41,50 @@ export interface RealRunResult {
     result: "passed" | "failed" | "not_run";
     summary: string;
   }[];
+  /** Self-evolution: the agent's self-reported retrospective, parsed from stdout. */
+  retro?: AgentRetro;
+}
+
+/** Agent's self-critique block (see docs/agent-self-evolution-loop.md, 钩子B). */
+export interface AgentRetro {
+  wentWell?: string;
+  wentWrong?: string;
+  nextTime?: string;
+}
+
+/**
+ * Best-effort extraction of a `RETROSPECTIVE` JSON block the agent prints at
+ * handoff: `{ "went_well": "...", "went_wrong": "...", "next_time": "..." }`.
+ * Tolerates ``` fences, a leading "RETROSPECTIVE" marker, and surrounding noise.
+ * Returns undefined when no block with any retro key is found.
+ */
+export function parseRetro(stdout: string): AgentRetro | undefined {
+  if (!stdout) return undefined;
+
+  const candidates: string[] = [];
+  const fences = stdout.match(/```(?:json)?\s*([\s\S]*?)```/gi);
+  if (fences) {
+    for (const f of fences) candidates.push(f.replace(/```(?:json)?/i, "").replace(/```\s*$/, ""));
+  }
+  // Prefer the region after a RETROSPECTIVE marker, else scan the whole output.
+  const markerIdx = stdout.search(/RETROSPECTIVE/i);
+  candidates.push(markerIdx >= 0 ? stdout.slice(markerIdx) : stdout);
+
+  for (const c of candidates) {
+    const start = c.indexOf("{");
+    const end = c.lastIndexOf("}");
+    if (start < 0 || end <= start) continue;
+    try {
+      const obj = JSON.parse(c.slice(start, end + 1));
+      if (obj && (obj.went_well || obj.went_wrong || obj.next_time)) {
+        const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+        return { wentWell: str(obj.went_well), wentWrong: str(obj.went_wrong), nextTime: str(obj.next_time) };
+      }
+    } catch {
+      /* try next candidate */
+    }
+  }
+  return undefined;
 }
 
 export function createTaskPacket(input: {
@@ -115,6 +159,7 @@ export function createRunResult(input: {
         summary: baseSummary,
       },
     ],
+    retro: parseRetro(input.execution.stdout),
   };
 }
 

@@ -23,6 +23,7 @@ import { defaultModelFor } from "./agentRegistry.ts";
 import { createRunResult, createTaskPacket } from "./runArtifacts.ts";
 import { collectChangedFiles, ensureWorktree, type DiffResult } from "./worktree.ts";
 import { runArtifactDir, writeRunArtifacts } from "./artifacts.ts";
+import { recallLessons, recordRetro } from "./retro.ts";
 
 const J = (v: unknown) => JSON.stringify(v ?? []);
 
@@ -49,6 +50,20 @@ export async function runRealTask(
   const branch = `agent/${provider}-${taskId.slice(-6)}`;
   const worktree = options.worktree?.trim() || `../agentteam-${provider}-${taskId.slice(-6)}`;
   const drunId = uid("drun");
+
+  // Self-evolution (recall side): only when we will actually execute, so dry-run
+  // and disabled paths stay side-effect free (recallLessons spawns bin/memory,
+  // which bumps reference_count). Best-effort: failure never blocks the run.
+  const willExecute = realAdapterEnabled() && !options.dryRun;
+  let lessons = "";
+  if (willExecute) {
+    try {
+      lessons = recallLessons({ role: "coder", task });
+    } catch {
+      lessons = "";
+    }
+  }
+
   const command = buildCliCommand({
     provider,
     task,
@@ -56,6 +71,7 @@ export async function runRealTask(
     worktree,
     prompt: options.prompt,
     model,
+    lessons,
   });
   const packet = createTaskPacket({ runId, task, provider, model, branch, worktree, command });
 
@@ -94,7 +110,7 @@ export async function runRealTask(
   startTx();
 
   // Only create a real isolated worktree when we will actually execute.
-  const willExecute = realAdapterEnabled() && !options.dryRun;
+  // (willExecute is computed above, before the recall step.)
   let worktreeError: string | undefined;
   if (willExecute) {
     try {
@@ -156,7 +172,9 @@ export async function runRealTask(
         currentStep: result.summary,
         updatedAt: iso(),
       },
-      memoryNote: options.memoryNote ?? "no matching high-confidence memory recorded for this run",
+      memoryNote:
+        options.memoryNote ??
+        (lessons ? lessons : "no matching high-confidence memory recorded for this run"),
     }).dir;
   } catch {
     artifactDir = runArtifactDir(drunId);
@@ -272,6 +290,28 @@ export async function runRealTask(
     touchRun(runId);
   });
   finishTx();
+
+  // Self-evolution (retro side): only for real executions, so dry-run/disabled
+  // "blocked" outcomes don't pollute memory. Prefer the agent's self-reported
+  // RETROSPECTIVE; otherwise recordRetro falls back to the mechanical signal
+  // (status/blockers). Best-effort: never throws, never blocks the handoff.
+  if (willExecute) {
+    try {
+      recordRetro({
+        role: "coder",
+        task,
+        provider,
+        status: result.status,
+        drunId,
+        blockers: result.blockers,
+        wentWell: result.retro?.wentWell,
+        wentWrong: result.retro?.wentWrong,
+        nextTime: result.retro?.nextTime,
+      });
+    } catch {
+      /* retro is best-effort */
+    }
+  }
 
   return { ok: true };
 }

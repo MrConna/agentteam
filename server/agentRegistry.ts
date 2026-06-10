@@ -44,7 +44,7 @@ export interface AgentsConfig {
 }
 
 const DEFAULT_PROMPT =
-  "You are an AgentTeam delegated coding agent.\nRun ID: {runId}\nTask ID: {taskId}\nTitle: {title}\nDescription: {description}\nWrite scope: {fileScope}\nFollow AGENTS.md and docs/agent-development-standard.md.\nBefore handoff, report changed files, commands run, validation, blockers, and follow-ups.";
+  "You are an AgentTeam delegated coding agent.\nRun ID: {runId}\nTask ID: {taskId}\nTitle: {title}\nDescription: {description}\nWrite scope: {fileScope}\nFollow AGENTS.md and docs/agent-development-standard.md.\nIf a \"过往同类任务教训\" section is shown above, read it first and apply the lessons.\nBefore handoff, report changed files, commands run, validation, blockers, and follow-ups.\nThen, as the very last line, print a self-retrospective so future runs can learn:\nRETROSPECTIVE {\"went_well\":\"...\",\"went_wrong\":\"...\",\"next_time\":\"...\"}\nEach value is one short sentence; next_time must be a concrete, actionable improvement (use \"\" if truly none).";
 
 const DEFAULT_CONFIG: AgentsConfig = {
   defaultPromptTemplate: DEFAULT_PROMPT,

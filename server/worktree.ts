@@ -65,10 +65,16 @@ export function ensureWorktree(input: { branch: string; worktree: string; base?:
  */
 export function collectChangedFiles(worktree: string): DiffResult {
   const path = absoluteWorktree(worktree);
-  git(["add", "-A"], path);
+  const add = git(["add", "-A"], path);
+  if (!add.ok) {
+    throw new Error(`git add failed: ${add.stderr || add.stdout || "unknown error"}`);
+  }
   const numstat = git(["diff", "--cached", "--numstat"], path);
+  if (!numstat.ok) {
+    throw new Error(`git diff failed: ${numstat.stderr || numstat.stdout || "unknown error"}`);
+  }
   const changedFiles: ChangedFile[] = [];
-  if (numstat.ok && numstat.stdout) {
+  if (numstat.stdout) {
     for (const line of numstat.stdout.split("\n")) {
       const [added, removed, ...rest] = line.split("\t");
       const file = rest.join("\t").trim();

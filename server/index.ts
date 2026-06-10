@@ -4,6 +4,7 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { runNextReadyTask, runTask } from "./adapter.ts";
 import { providerOptions } from "./agentRegistry.ts";
+import { listScriptSkills, parseSlashCommand, runScriptSkill } from "./scriptSkills.ts";
 import {
   attachChat,
   chatProviders,
@@ -53,6 +54,8 @@ const ok = (res: express.Response, runId: string) => {
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 app.get("/api/providers", (_req, res) => res.json(providerOptions()));
+
+app.get("/api/script-skills", (_req, res) => res.json(listScriptSkills()));
 
 app.get("/api/runs", (_req, res) => res.json(listRuns()));
 
@@ -112,6 +115,22 @@ app.post("/api/runs/:runId/tasks/:taskId/run", async (req, res) => {
 
 app.post("/api/runs/:runId/run-next", async (req, res) => {
   const result = await runNextReadyTask(req.params.runId, req.body ?? {});
+  if (!result.ok) return res.status(409).json({ error: result.reason });
+  return ok(res, req.params.runId);
+});
+
+app.post("/api/runs/:runId/script-skills/:skillId/run", async (req, res) => {
+  const result = await runScriptSkill(req.params.runId, req.params.skillId, req.body ?? {});
+  if (!result.ok) return res.status(409).json({ error: result.reason });
+  return ok(res, req.params.runId);
+});
+
+app.post("/api/runs/:runId/slash-command", async (req, res) => {
+  const { command, dryRun, taskId } = req.body ?? {};
+  if (!command || typeof command !== "string") return res.status(400).json({ error: "command_required" });
+  const parsed = parseSlashCommand(command);
+  if (!parsed.skill) return res.status(404).json({ error: "skill_not_found" });
+  const result = await runScriptSkill(req.params.runId, parsed.skill.id, { args: parsed.args, dryRun, taskId });
   if (!result.ok) return res.status(409).json({ error: result.reason });
   return ok(res, req.params.runId);
 });

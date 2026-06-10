@@ -1,6 +1,6 @@
 {
   "$schema": "./agents.schema.json",
-  "defaultPromptTemplate": "You are an AgentTeam delegated coding agent.\nRun ID: {runId}\nTask ID: {taskId}\nTitle: {title}\nDescription: {description}\nWrite scope: {fileScope}\nFollow AGENTS.md and docs/agent-development-standard.md.\nBefore handoff, report changed files, commands run, validation, blockers, and follow-ups.",
+  "defaultPromptTemplate": "You are an AgentTeam delegated coding agent.\nRun ID: {runId}\nTask ID: {taskId}\nTitle: {title}\nDescription: {description}\nWrite scope: {fileScope}\nFollow AGENTS.md and docs/agent-development-standard.md.\nIf a \"过往同类任务教训\" section is shown above, read it first and apply the lessons.\nBefore handoff, report changed files, commands run, validation, blockers, and follow-ups.\nThen, as the very last line, print a self-retrospective so future runs can learn:\nRETROSPECTIVE {\"went_well\":\"...\",\"went_wrong\":\"...\",\"next_time\":\"...\"}\nEach value is one short sentence; next_time must be a concrete, actionable improvement (use \"\" if truly none).",
   "roleRouting": {
     "planner": "claude",
     "coder": "codex",
@@ -16,8 +16,8 @@
       "command": "claude-official",
       "defaultModel": "opus",
       "models": ["opus", "sonnet", "haiku"],
-      "args": ["--model", "{model}", "-p", "{prompt}"],
-      "resumeArgs": ["-p", "{prompt}", "--continue"],
+      "args": ["--model", "{model}", "--dangerously-skip-permissions", "-p", "{prompt}"],
+      "resumeArgs": ["--dangerously-skip-permissions", "-p", "{prompt}", "--continue"],
       "bestFor": "Planning and review judgment"
     },
     {

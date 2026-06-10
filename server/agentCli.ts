@@ -60,8 +60,11 @@ export function buildCliCommand(input: {
   worktree: string;
   prompt?: string;
   model?: string;
+  /** 自进化召回：拼在 prompt 最前面的「过往同类任务教训」段（见 server/retro.ts）。 */
+  lessons?: string;
 }): CliCommand {
-  const prompt = input.prompt?.trim() || renderPrompt(input.provider, input.task, input.runId);
+  const base = input.prompt?.trim() || renderPrompt(input.provider, input.task, input.runId);
+  const prompt = input.lessons?.trim() ? `${input.lessons.trim()}\n\n${base}` : base;
   const model = input.model ?? "";
   const args = buildArgs({
     provider: input.provider,
