@@ -1,0 +1,39 @@
+{
+  "loops": [
+    {
+      "id": "test-until-green",
+      "name": "Test Until Green",
+      "goal": "Make the test suite pass. Fix failing tests and the code under test until everything is green.",
+      "check": "npm test",
+      "maxIterations": 10
+    },
+    {
+      "id": "build-until-green",
+      "name": "Build Until Green",
+      "goal": "Make the project build successfully. Fix compile/build errors until the build is clean.",
+      "check": "npm run build",
+      "maxIterations": 10
+    },
+    {
+      "id": "lint-until-clean",
+      "name": "Lint Until Clean",
+      "goal": "Eliminate all lint errors and warnings without changing behavior.",
+      "check": "npm run lint",
+      "maxIterations": 8
+    },
+    {
+      "id": "typecheck-until-pass",
+      "name": "Typecheck Until Pass",
+      "goal": "Resolve all type errors. Do not weaken types with `any` or `@ts-ignore` unless unavoidable and justified.",
+      "check": "npm run typecheck",
+      "maxIterations": 8
+    },
+    {
+      "id": "gradle-build-until-green",
+      "name": "Gradle Build Until Green",
+      "goal": "Make the Android debug build succeed. Fix Kotlin compile errors until assembleDebug passes.",
+      "check": "./gradlew assembleDebug",
+      "maxIterations": 10
+    }
+  ]
+}
