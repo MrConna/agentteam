@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 2: 多阶段角色转换 — 为每个 Agent 设计身份</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>多阶段角色转换</h1>
+<p class="meta">Lesson 2 · 20 min · 基于《深入理解 AI Agent》第 10 章</p>
+
+<hr>
+
+<p>
+上一课学了两个维度。这一课深入到最直接可用的模式——<strong>多阶段角色转换</strong>：让同一个执行流在不同阶段切换 Agent "身份"，每个身份有独立的系统提示词和工具集。
+</p>
+
+<p>
+这意味着：你不用给 claude、codex、agy 各开一个窗口口述任务——而是为每个角色<strong>写好正式的 System Prompt 模板</strong>，每次派活自动带上去，身份清晰、边界明确、质量可控。
+</p>
+
+<h2>两种角色转换模式</h2>
+
+<h3>模式 1：多阶段角色转换（线性流程）</h3>
+<blockquote>
+每个阶段切换系统提示词和工具集后，就变成了一个新的 Agent（身份、职责和能力都变了），但它保留了前任的全部记忆。每个角色共享同一段轨迹。
+</blockquote>
+
+<p>模式：需求分析师 → 软件工程师 → 代码审查员。阶段转换用特定工具调用触发（如 <code>complete_requirements_analysis()</code>）。适合<strong>预先定义好流程</strong>的场景。</p>
+
+<h3>模式 2：跨领域角色转换（动态路由）</h3>
+<blockquote>
+通过 <code>transfer_to_agent(target, reason)</code> 由 Agent 自主判断何时切换角色——不再是固定流程，而是根据任务需求动态路由。
+</blockquote>
+
+<p>模式：前台 triage → research / coding / data_analysis / writing → triage 收尾。适合<strong>复合任务、未知流程</strong>的场景。</p>
+
+<div class="callout callout-info">
+<strong>AgentTeam 最适用哪个？</strong><br>
+你现在的不共享上下文架构更适合<strong>模式 2 的思想</strong>——leader（triage）拆任务，按需分配给 claude/codex/agy（专业角色）。区别在于你们不共享上下文，而是通过 tmux 输出 / session_send 通信。但角色模板的设计原则完全相同。
+</div>
+
+<h2>如何设计角色模板</h2>
+
+<p>以书中 triage → research → coding → writing 系统为例，每个角色的提示词包含三个部分：</p>
+
+<ol>
+  <li><strong>身份定义</strong>：我是谁，我擅长什么，我的边界是什么</li>
+  <li><strong>行为指导</strong>：我应该怎么工作，优先做什么</li>
+  <li><strong>过渡规则</strong>：我什么时候该移交，移交给谁</li>
+</ol>
+
+<h3>triage（前台分诊）— 默认入口</h3>
+<pre><code>你是前台分诊 Agent。你的职责：
+1. 理解用户的整体需求
+2. 拆成有先后顺序的子任务
+3. 逐步移交给合适的专业角色
+4. 全部子任务完成后做收尾确认
+
+你自身没有专业工具，只持有 transfer 权限。
+路由规则：
+- 查数据/资料 → 转 research
+- 写并运行代码 → 转 coding
+- 计算/统计 → 转 data_analysis
+- 润色成稿 → 转 writing</code></pre>
+
+<h3>research（信息检索专家）</h3>
+<pre><code>你是信息检索专家，擅长查找数据、事实和资料。
+使用 web_search 工具搜索，把关键数据整理后移交下一步。
+完成本职后移交回 triage 或下一角色。</code></pre>
+
+<h3>coding（编程专家）</h3>
+<pre><code>你是编程专家，用 execute_python 写并运行代码。
+解决程序逻辑/脚本类问题。输出产物后再移交。</code></pre>
+
+<h2>映射到 AgentTeam</h2>
+
+<p>你现在可以给每个 session 写正式的角色模板了：</p>
+
+<table>
+  <tr><th>Session</th><th>角色</th><th>职责</th><th>可用工具</th><th>过渡规则</th></tr>
+  <tr>
+    <td>claude:1</td>
+    <td>Reviewer / Analyst</td>
+    <td>审查代码、分析架构、写文档</td>
+    <td>文件读写、代码分析、git</td>
+    <td>审查通过 → 通知 leader</td>
+  </tr>
+  <tr>
+    <td>codex:2</td>
+    <td>Implementer</td>
+    <td>按需求写代码、跑测试</td>
+    <td>文件读写、代码执行、git</td>
+    <td>实现完成 + 测试通过 → 通知 leader</td>
+  </tr>
+  <tr>
+    <td>agy:3</td>
+    <td>Tester / Scout</td>
+    <td>跑测试、快速侦察、验证结果</td>
+    <td>文件读写、命令执行</td>
+    <td>验证完成 → 报告结果给 leader</td>
+  </tr>
+</table>
+
+<div class="callout callout-tip">
+<strong>练习</strong>：给 codex:2 写一个正式的 System Prompt 模板，包含身份定义、行为指导和过渡规则。存下来下次派活时直接用 tmux send-keys 贴进去。
+</div>
+
+<h2>关键设计原则</h2>
+
+<ol>
+  <li><strong>边界清晰</strong>：每个角色的工具集要独立，不给多余的能力</li>
+  <li><strong>过渡显式</strong>：用特定工具调用（或 tmux 输出）作为阶段完成信号</li>
+  <li><strong>上下文精简</strong>：上游传给下游的应是结构化摘要，不是全量轨迹</li>
+  <li><strong>回退处理</strong>：下游发现问题时应能退回上游修改（如 review 不通过 → leader 再派回 implementer）</li>
+</ol>
+
+<h2>从 Lesson 1 延伸</h2>
+
+<p>
+上一课的映射练习——你填了四个问题后，会发现：
+</p>
+
+<ul>
+  <li>"不共享上下文"决定了你们的通信方式（tmux 输出 / session_send）</li>
+  <li>"管理者模式"决定了你的角色（leader 是 Manager）</li>
+  <li>"角色模板"就是给每个 Agent 一套正式的 System Prompt</li>
+</ul>
+
+<p>
+三节课的内容开始串起来了。
+</p>
+
+<hr>
+
+<div class="callout callout-tip">
+<strong>下一步动作</strong>：拿起手机/另一个终端，给 claude/codex/agy 各写一页 System Prompt 模板。下次派活时先 send-keys 贴模板，再给具体任务。
+<br><br>
+有问题随时问。
+</div>
+
+<p class="meta" style="margin-top:2rem">
+参考：<a href="https://github.com/bojieli/ai-agent-book/blob/main/book/chapter10.md">《深入理解 AI Agent》第 10 章 · 多 Agent 协作</a>
+</p>
+
+</body>
+</html>

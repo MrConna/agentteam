@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1: 多 Agent 协作的分类框架</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+
+<h1>多 Agent 协作的分类框架</h1>
+<p class="meta">Lesson 1 · 15 min · 基于《深入理解 AI Agent》第 10 章</p>
+
+<hr>
+
+<p>
+当你已经不是第一次在终端间切换——把任务派给 <code>claude:1</code>、<code>codex:2</code>、<code>agy:3</code>——你就已经在做多 Agent 协作了。问题是：你的协作方式有名字吗？你知道还有哪些选项吗？
+</p>
+
+<p>
+本书第 10 章给出了一个简洁而有力的分类框架，只有<strong>两个维度</strong>：
+</p>
+
+<ol>
+  <li><strong>上下文是否共享</strong></li>
+  <li><strong>协作拓扑</strong>（控制权与信息的流动结构）</li>
+</ol>
+
+<p>
+这节课把它们一一拆开，直接映射到你正在做的 AgentTeam 上。
+</p>
+
+<h2>维度一：上下文是否共享</h2>
+
+<p>
+这是最基础的架构决策。用书里的话说：
+</p>
+
+<blockquote>
+共享上下文 = 后一个 Agent 继承前一个的完整对话历史，就像围坐一桌讨论。<br>
+不共享上下文 = 每个 Agent 独立工作，通过文件/消息交换信息，就像不同部门协作。
+</blockquote>
+
+<div class="callout callout-info">
+<strong>直接映射到 AgentTeam</strong><br>
+你的 <code>tmux send-keys</code> 协调方式——leader 给各窗口发独立任务，各 session 独立执行、通过 tmux 输出交换结果——就是典型的<strong>不共享上下文</strong>模式。而 <code>intercom</code> 双向通信或 <code>delegate</code> 子 agent 则是介于两者之间。
+</div>
+
+<p>
+选哪个？书里给了一张表格作为选型检查表：
+</p>
+
+<table>
+  <tr><th>选择依据</th><th>共享上下文</th><th>不共享上下文</th></tr>
+  <tr><td>子任务数量</td><td>少（2-3 个角色）</td><td>多（需要并行处理）</td></tr>
+  <tr><td>上下文窗口</td><td>足以容纳所有角色信息</td><td>单窗口装不下</td></tr>
+  <tr><td>并行度</td><td>串行为主</td><td>可大规模并行</td></tr>
+  <tr><td>信息隔离</td><td>不需要</td><td>需要（如安全审查）</td></tr>
+  <tr><td>成本预算</td><td>单轨迹接力，Token 累积</td><td>总 Token 通常高出数倍</td></tr>
+</table>
+
+<div class="callout callout-warn">
+<strong>经验法则</strong>：若预期累计上下文会超过窗口的 50%，应不共享。多数实际系统采用"阶段切换式"——前几个 Agent 共享，到信息饱和点后切换为不共享 + 显式 handoff。
+</div>
+
+<h2>维度二：协作拓扑</h2>
+
+<p>
+一旦选择不共享上下文，"信息如何流动、由谁协调"就成为必须显式设计的问题。书里给出三种拓扑，按复杂度递增：
+</p>
+
+<h3>1. 对等协作 (Peer Collaboration)</h3>
+<p>
+2-3 个 Agent 平等交互，形成迭代改进循环——就像写论文时一个人起草、另一个人批注修改。不加新信息的纯辩论通常无效，但<strong>引入外部反馈</strong>（代码执行结果、截图审查）时效果显著。
+</p>
+
+<div class="callout callout-info">
+<strong>AgentTeam 对照</strong>：你把一个任务切分成"codex 实现、claude review、agy 测试"——这就是对等协作。关键是要确保每个环节<strong>引入了新信息</strong>（测试结果、审查意见），而不是三个 Agent 对着同一段文本各自输出。
+</div>
+
+<h3>2. 管理者模式 (Orchestration)</h3>
+<p>
+一个中心化的 Manager Agent 负责任务规划和调度，多个子 Agent 各负责特定子任务。这是目前工程中最常用的模式。
+</p>
+
+<div class="callout callout-info">
+<strong>AgentTeam 对照</strong>：你（leader）就是这个 Manager。你负责拆任务、分配给各窗口、监控进度、汇总结果。书中的管理者模式给了你一套理论语言来描述你已经在做的事。
+</div>
+
+<h3>3. 去中心化模式 (Decentralized)</h3>
+<p>
+没有运行时的中心控制者，Agent 之间像人类一样互相沟通。适合 Agent 数量多、动态发现彼此的复杂场景。
+</p>
+
+<div class="callout callout-tip">
+<strong>值得关注</strong>：当你需要 10 个以上的 Agent 协作时，去中心化模式就变得有吸引力了——管理者会成为瓶颈。这是 AgentTeam 未来可能的演进方向。
+</div>
+
+<h2>什么时候多 Agent 真的优于单 Agent？</h2>
+
+<p>
+书里给出了一个清晰判断：<strong>协作过程是否引入了单个 Agent 在生成时无法获得的新信息？</strong>
+</p>
+
+<table>
+  <tr><th>协作模式</th><th>是否引入新信息</th><th>效果</th></tr>
+  <tr><td>同一模型自我审查</td><td>❌ 否</td><td>通常无效</td></tr>
+  <tr><td>不同 Agent 辩论同一段文本</td><td>❌ 否</td><td>与单 Agent 持平</td></tr>
+  <tr><td>Reviewer 使用测试执行结果审查代码</td><td>✅ 是</td><td>显著提升</td></tr>
+  <tr><td>Reviewer 查看渲染截图审查前端代码</td><td>✅ 是</td><td>显著提升</td></tr>
+  <tr><td>Reviewer 使用外部工具验证事实</td><td>✅ 是</td><td>显著提升</td></tr>
+</table>
+
+<div class="callout callout-warn">
+<strong>成本警告</strong>：Anthropic 曾披露其多 Agent 研究系统的 Token 消耗约为普通对话的 15 倍！Token 用量本身就能解释约 80% 的性能差异。一个调校得当的单 Agent 往往更划算。
+</div>
+
+<h2>映射练习</h2>
+
+<p>拿你刚刚完成的这次协作（agent-memory-tools 改造）来填空：</p>
+
+<ol>
+  <li>上下文是否共享？______（三个窗口各自独立执行，不共享上下文）</li>
+  <li>协作拓扑？______（leader 拆任务、分配、监控——管理者模式）</li>
+  <li>引入新信息了吗？______（agy 跑了测试，结果反馈回来了；claude 和 codex 没出活）</li>
+  <li>成本考虑了吗？______（让三个模型并行跑同一小任务，token 开销其实不小）</li>
+</ol>
+
+<hr>
+
+<div class="callout callout-tip">
+<strong>下一步</strong>：用书里第 10 章的"多阶段角色转换"模式，给你的 AgentTeam role-switching 加个正式设计——分别给 claude 和 codex 写系统提示词模版，而不是每次都口述。
+<br><br>
+有问题随时问，我在终端里等着。
+</div>
+
+<p class="meta" style="margin-top:2rem">
+参考：<a href="https://github.com/bojieli/ai-agent-book/blob/main/book/chapter10.md">《深入理解 AI Agent》第 10 章 · 多 Agent 协作</a>
+</p>
+
+</body>
+</html>

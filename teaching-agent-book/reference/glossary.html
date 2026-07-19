@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>多 Agent 协作术语表</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<h1>多 Agent 协作 · 术语表</h1>
+<p class="meta">Quick reference · 基于《深入理解 AI Agent》第 10 章</p>
+
+<hr>
+
+<h2>核心概念</h2>
+
+<table>
+  <tr><th>术语</th><th>定义</th><th>AgentTeam 对应</th></tr>
+  <tr>
+    <td><strong>共享上下文</strong></td>
+    <td>Agent 继承前序 Agent 的完整对话历史，信息零损耗</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><strong>不共享上下文</strong></td>
+    <td>每个 Agent 维护独立上下文，通过文件/消息/参数交换信息</td>
+    <td>tmux send-keys 独立派任务</td>
+  </tr>
+  <tr>
+    <td><strong>对等协作</strong></td>
+    <td>2-3 个 Agent 平等交互，迭代改进</td>
+    <td>codex 实现 → claude review → agy 测试</td>
+  </tr>
+  <tr>
+    <td><strong>管理者模式</strong></td>
+    <td>中心化 Manager 拆任务、调度、收结果</td>
+    <td>leader 窗口拆活派活</td>
+  </tr>
+  <tr>
+    <td><strong>去中心化模式</strong></td>
+    <td>无中心控制者，Agent 互相发现和沟通</td>
+    <td>未来方向</td>
+  </tr>
+  <tr>
+    <td><strong>显式 handoff</strong></td>
+    <td>上游 Agent 主动决定把哪些信息交接给下游</td>
+    <td>session_send / intercom</td>
+  </tr>
+  <tr>
+    <td><strong>新信息原则</strong></td>
+    <td>多 Agent 协作的价值来自引入生成时不存在的信息</td>
+    <td>测试结果、审查意见、工具反馈</td>
+  </tr>
+  <tr>
+    <td><strong>步骤预算</strong></td>
+    <td>Agent 可用的工具调用次数或迭代轮数</td>
+    <td>—</td>
+  </tr>
+</table>
+
+<h2>通信机制（不共享上下文时）</h2>
+
+<table>
+  <tr><th>机制</th><th>适用场景</th><th>AgentTeam 对应</th></tr>
+  <tr><td>工具调用参数</td><td>结构化数据传递，类型确定</td><td>—</td></tr>
+  <tr><td>共享文件系统</td><td>产物较大或需持久化</td><td>同一文件系统下读写</td></tr>
+  <tr><td>消息总线</td><td>异步通信，发送方和接收方无需同时在线</td><td>session_send (Mailbox)</td></tr>
+</table>
+
+<h2>选择原则</h2>
+<ul>
+  <li>累计上下文 > 窗口 50% → 不共享上下文</li>
+  <li>信息零损耗是硬约束 → 共享上下文</li>
+  <li>多数实际系统 → 阶段切换：先共享，到饱和点切换为不共享 + handoff</li>
+  <li>多 Agent 开销约为单 Agent 的 3-15 倍 → 效果收益必须覆盖开销</li>
+</ul>
+
+<p class="meta" style="margin-top:2rem">
+参考：<a href="https://github.com/bojieli/ai-agent-book/blob/main/book/chapter10.md">《深入理解 AI Agent》第 10 章 · 多 Agent 协作</a>
+</p>
+</body>
+</html>
